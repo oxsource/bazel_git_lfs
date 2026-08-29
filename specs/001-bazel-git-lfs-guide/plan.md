@@ -48,18 +48,18 @@ The V1 requirements are split into **6 sequential stages**, each independently r
   - `inspect` requires an initialized config area (`init`); it reports the dependency inventory with no downloads, uploads, or file modifications.
 - **Exit signal**: `inspect` returns the exact expected dependency set for fixture projects (incl. empty and multi-URL cases) without side effects; the cache command persists the result for fast `list` reads.
 
-### Stage 3 — Mirroring Core (`sync`)
+### Stage 3 — Mirroring Core (`fetch` / `pull` / `push`)
 
-**设计规划指导**: [tasks.md T003](./tasks.md) — pending design planning guide link (待创建)
+**设计规划指导**: [tasks.md T003](./tasks.md) — pending design planning guide link (待创建) | **Spec**: [004-fetch-pull-push](../004-fetch-pull-push/spec.md) (supersedes the original single `sync` command)
 
-- **Objective**: The core business value — mirror artifacts into the shared Git LFS repository.
+- **Objective**: The core business value — mirror artifacts into the shared Git LFS repository, with git-style command separation.
 - **Roughly what it does**:
-  - Download missing artifacts, stream-compute SHA256, reject mismatches (never cache/store failures).
-  - Maintain a content-addressed local cache (keyed by SHA256) and reuse cached artifacts.
-  - Support multiple projects in one invocation with cross-project dedup.
-  - Upload valid artifacts to the Git LFS mirror via system `git`/`git-lfs`; maintain `manifest.json` (source, SHA256, mirror path); commit/push.
+  - `fetch` (origin→local): download missing artifacts from declared source URLs, stream-compute SHA256, reject mismatches and missing-SHA256 deps (never cache/store failures), store under the content-addressed `.bazel_git_lfs/objects/` store with Maven-style reversed-domain layout (`objects/<reversed-host>/<org>/<repo>/<sha256>`).
+  - `push` (local→remote): pure transport — upload local objects to the Git LFS mirror via system `git`/`git-lfs`, maintain `manifest.json` (SHA256, object path, source URLs), commit/push; idempotent (`already-mirrored` skip), missing-local deps reported without failing.
+  - `pull` (remote→local): fetch snapshot dependencies from the mirror manifest into the local objects store (mirror-only, never origin); strict semantics — mirror-missing deps error (`not-in-mirror`).
+  - Cross-project dedup is achieved through the shared mirror (content-addressed by SHA256) rather than multi-project invocations.
   - Keep the repository backend behind an `ArtifactRepository` interface (Git LFS is the initial implementation).
-- **Exit signal**: First-time sync populates the mirror; re-sync is idempotent (no duplicate uploads); hash mismatch is rejected.
+- **Exit signal**: `fetch`+`push` populate the mirror on first run and re-push is idempotent (no duplicate uploads); `pull` reproduces a byte-identical local store from the mirror alone; hash mismatch is rejected at every entry point.
 
 ### Stage 4 — Mirror Consumption (`verify`, `list`, `search`)
 
