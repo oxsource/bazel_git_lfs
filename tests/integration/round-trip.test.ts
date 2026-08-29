@@ -9,7 +9,7 @@ import { runFetch } from '@/transfer/fetch';
 import { runPush } from '@/transfer/push';
 import { runPull } from '@/transfer/pull';
 import { ObjectsStore } from '@/objects/store';
-import { sha256HexOfBuffer } from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 import { FsProfileStore } from '@/config/store';
 import { FsSnapshotStore } from '@/inspect/snapshot';
 import type { Dependency } from '@/inspect/models';
@@ -23,9 +23,9 @@ let originRequestsAtStart = 0;
 let projectA: string;
 
 const ALPHA = readFileSync(join(FIXTURES, 'alpha.bin'));
-const ALPHA_SHA = sha256HexOfBuffer(ALPHA);
+const ALPHA_SHA = sha256.hexOfBuffer(ALPHA);
 const BETA = readFileSync(join(FIXTURES, 'beta.bin'));
-const BETA_SHA = sha256HexOfBuffer(BETA);
+const BETA_SHA = sha256.hexOfBuffer(BETA);
 const ALPHA_URL = 'https://github.com/facebook/react/react.tar.gz';
 
 function dep(name: string, urls: string[], sha256: string | null): Dependency {

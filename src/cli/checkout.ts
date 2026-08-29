@@ -1,5 +1,5 @@
-import { checkInitialized, resolveDefaultRemote } from '@/cli/common';
-import { printResult, EXIT_OK, EXIT_ERROR } from '@/cli/format';
+import { guard } from '@/cli/common';
+import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
 import { runCheckoutScan, writeCheckoutState, removeCheckoutState, isNonDefaultCheckout } from '@/mirror/checkout';
 import { resolveAlias, RESERVED_ALIASES } from '@/mirror/alias';
 import { GitLfsRepository } from '@/mirror/repository';
@@ -17,15 +17,15 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
   const projectDir = opts.cwd;
   const alias = opts.alias;
 
-  const guard = checkInitialized(projectDir);
-  if (!guard.ok) {
-    printResult({ ok: false, error: guard.error }, { json: true });
+  const g = guard.checkInitialized(projectDir);
+  if (!g.ok) {
+    format.printResult({ ok: false, error: g.error }, { json: true });
     return EXIT_ERROR;
   }
 
-  const remote = await resolveDefaultRemote(projectDir);
+  const remote = await guard.resolveDefaultRemote(projectDir);
   if (!remote.ok) {
-    printResult({ ok: false, error: remote.error }, { json: true });
+    format.printResult({ ok: false, error: remote.error }, { json: true });
     return EXIT_ERROR;
   }
 
@@ -52,7 +52,7 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
       if (resolved === RESERVED_ALIASES.LOCAL) {
         return { type: 'local', baseUrl: `file://${join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS)}` };
       }
-      const profile = await resolveDefaultRemote(projectDir);
+      const profile = await guard.resolveDefaultRemote(projectDir);
       if (!profile.ok) {
         throw new Error(profile.error);
       }
@@ -88,7 +88,7 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
     error: result.error,
   };
 
-  printResult(output, { json: true });
+  format.printResult(output, { json: true });
 
   if (result.ok && result.changed > 0) {
     if (isNonDefaultCheckout(alias)) {

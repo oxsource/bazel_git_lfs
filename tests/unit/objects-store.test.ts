@@ -3,14 +3,14 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync, rmSync, existsSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ObjectsStore, HashMismatchError } from '@/objects/store';
-import { sha256HexOfBuffer } from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 
 function tempObjectsDir(): string {
   return join(mkdtempSync(join(tmpdir(), 'bgl-store-')), 'objects');
 }
 
 const CONTENT = Buffer.from('fixture-object-content');
-const SHA = sha256HexOfBuffer(CONTENT);
+const SHA = sha256.hexOfBuffer(CONTENT);
 const URL = 'https://github.com/facebook/react/react.tar.gz';
 
 describe('ObjectsStore', () => {

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { FsSnapshotStore } from '@/inspect/snapshot';
 import type { Dependency } from '@/inspect/models';
 import { ObjectsStore, HashMismatchError } from '@/objects/store';
-import { sha256HexOfFile, isSha256Hex } from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 import type { ObjectRef } from '@/objects/models';
 import type { MirrorManifest, RemoteInfo } from '@/mirror/models';
 import { GitError } from '@/mirror/lfs';
@@ -127,7 +127,7 @@ async function materializeAndStore(
     const result = results.find((r) => r.name === w.name);
     if (!result) continue;
     try {
-      const actual = await sha256HexOfFile(materialized[i]);
+      const actual = await sha256.hexOfFile(materialized[i]);
       if (actual !== w.sha256) {
         throw new HashMismatchError(
           `mirror object does not match declared sha256 (expected ${w.sha256}, got ${actual})`,
@@ -175,7 +175,7 @@ async function resolveDependency(
     status: 'failed',
   };
 
-  if (!dependency.sha256 || !isSha256Hex(dependency.sha256)) {
+  if (!dependency.sha256 || !sha256.isHex(dependency.sha256)) {
     return {
       result: {
         ...base,

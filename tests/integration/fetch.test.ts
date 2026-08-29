@@ -7,14 +7,14 @@ import { startOriginServer, fixtureRoutes, type OriginServer } from '../helpers/
 import { runFetch } from '@/transfer/fetch';
 import { runFetchCommand } from '@/cli/fetch';
 import { ObjectsStore } from '@/objects/store';
-import { sha256HexOfBuffer } from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 import { FsSnapshotStore } from '@/inspect/snapshot';
 import type { Dependency } from '@/inspect/models';
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '../fixtures/artifacts');
 const ALPHA = readFileSync(join(FIXTURES, 'alpha.bin'));
-const ALPHA_SHA = sha256HexOfBuffer(ALPHA);
-const BETA_SHA = sha256HexOfBuffer(readFileSync(join(FIXTURES, 'beta.bin')));
+const ALPHA_SHA = sha256.hexOfBuffer(ALPHA);
+const BETA_SHA = sha256.hexOfBuffer(readFileSync(join(FIXTURES, 'beta.bin')));
 
 let origin: OriginServer;
 

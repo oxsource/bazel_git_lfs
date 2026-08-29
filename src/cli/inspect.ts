@@ -1,8 +1,8 @@
-import { projectConfigDir } from '@/config/paths';
+import { paths } from '@/config/paths';
 import { inspectProject } from '@/inspect/inspector';
 import { InspectResult } from '@/inspect/models';
 import { FsSnapshotStore } from '@/inspect/snapshot';
-import { printResult, EXIT_OK, EXIT_ERROR } from '@/cli/format';
+import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
 import { existsSync } from 'node:fs';
 import { COMMANDS, TOOL_NAME } from '@/config/constants';
 
@@ -13,8 +13,8 @@ export interface InspectOptions {
 export async function runInspect(opts: InspectOptions): Promise<number> {
   const projectDir = opts.cwd;
 
-  if (!existsSync(projectConfigDir(projectDir))) {
-    printResult(
+  if (!existsSync(paths.projectConfigDir(projectDir))) {
+    format.printResult(
       {
         ok: false,
         error: `Not a valid bazel_git_lfs project: ${projectDir}. Run "${TOOL_NAME} ${COMMANDS.INIT}" first.`,
@@ -28,7 +28,7 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
   try {
     result = await inspectProject({ projectDir });
   } catch (err) {
-    printResult({ ok: false, error: (err as Error).message }, { json: true });
+    format.printResult({ ok: false, error: (err as Error).message }, { json: true });
     return EXIT_ERROR;
   }
 
@@ -37,7 +37,7 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
   try {
     snapshotPath = await store.write(projectDir, result);
   } catch (err) {
-    printResult(
+    format.printResult(
       {
         ok: false,
         error: `Cannot write snapshot to ${store.snapshotPath(projectDir)}: ${(err as Error).message}`,
@@ -47,7 +47,7 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
     return EXIT_ERROR;
   }
 
-  printResult(
+  format.printResult(
     {
       ok: true,
       projectDir: result.projectDir,

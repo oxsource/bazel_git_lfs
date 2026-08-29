@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 import { ObjectsStore, HashMismatchError } from '@/objects/store';
-import { isSha256Hex } from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 import type { ObjectRef } from '@/objects/models';
 
 export interface DownloadAttempt {
@@ -44,7 +44,7 @@ export async function downloadAndStore(
   ref: ObjectRef,
   options: DownloadOptions = {},
 ): Promise<DownloadOutcome> {
-  if (!isSha256Hex(ref.sha256)) {
+  if (!sha256.isHex(ref.sha256)) {
     return {
       status: 'failed',
       reason: 'missing-sha256',

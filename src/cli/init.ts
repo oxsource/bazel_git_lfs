@@ -1,8 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
-import { projectConfigDir, CONFIG_DIR_NAME } from '@/config/paths';
-import { printResult, printError, EXIT_OK, EXIT_ERROR, OutputOptions } from '@/cli/format';
+import { paths, CONFIG_DIR_NAME } from '@/config/paths';
+import { format, EXIT_OK, EXIT_ERROR, OutputOptions } from '@/cli/format';
 import { readCheckoutState } from '@/mirror/checkout';
 import { RESERVED_ALIASES } from '@/mirror/alias';
 import { COMMANDS, TOOL_NAME, FILES } from '@/config/constants';
@@ -29,13 +29,13 @@ export interface InitOptions extends OutputOptions {
 }
 
 export async function runInit(opts: InitOptions): Promise<number> {
-  const dir = projectConfigDir(opts.cwd);
+  const dir = paths.projectConfigDir(opts.cwd);
   const gitIgnorePath = join(opts.cwd, '.gitignore');
 
   try {
     await mkdir(dir, { recursive: true });
   } catch (err) {
-    printError(`Cannot create config directory at ${dir}: ${(err as Error).message}`, opts);
+    format.printError(`Cannot create config directory at ${dir}: ${(err as Error).message}`, opts);
     return EXIT_ERROR;
   }
 
@@ -55,7 +55,7 @@ export async function runInit(opts: InitOptions): Promise<number> {
   if (warnings.length > 0) {
     result.warnings = warnings;
   }
-  printResult(result, opts);
+  format.printResult(result, opts);
   return EXIT_OK;
 }
 

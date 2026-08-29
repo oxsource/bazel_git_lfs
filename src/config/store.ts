@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { Profile, isValidAlias, isValidGitUrl } from '@/config/profile';
+import { Profile, profile } from '@/config/profile';
 import { COMMANDS, TOOL_NAME } from '@/config/constants';
 
 export interface ConfigFile {
@@ -106,14 +106,14 @@ function validateProfile(alias: string, value: unknown, configPath: string): Pro
     throw new ConfigError(`Config file at ${configPath} has an invalid profile "${alias}".`);
   }
 
-  if (!isValidAlias(alias)) {
+  if (!profile.isValidAlias(alias)) {
     throw new ConfigError(
       `Config file at ${configPath} has an invalid alias "${alias}" (allowed: letters, digits, . _ -).`,
     );
   }
 
   const record = value as Record<string, unknown>;
-  if (typeof record.url !== 'string' || !isValidGitUrl(record.url)) {
+  if (typeof record.url !== 'string' || !profile.isValidGitUrl(record.url)) {
     throw new ConfigError(`Profile "${alias}" in ${configPath} has an invalid url.`);
   }
 

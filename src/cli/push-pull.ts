@@ -1,5 +1,5 @@
-import { checkInitialized, checkSnapshot, resolveDefaultRemote, type RemoteInfo } from '@/cli/common';
-import { printResult, EXIT_ERROR } from '@/cli/format';
+import { guard, type RemoteInfo } from '@/cli/common';
+import { format, EXIT_ERROR } from '@/cli/format';
 
 export interface PushPullCliOptions {
   cwd: string;
@@ -18,23 +18,23 @@ export async function runPushPullCommand(
 ): Promise<number> {
   const projectDir = opts.cwd;
 
-  for (const guard of [checkInitialized(projectDir), checkSnapshot(projectDir)]) {
-    if (!guard.ok) {
-      printResult({ ok: false, error: guard.error }, { json: true });
+  for (const g of [guard.checkInitialized(projectDir), guard.checkSnapshot(projectDir)]) {
+    if (!g.ok) {
+      format.printResult({ ok: false, error: g.error }, { json: true });
       return EXIT_ERROR;
     }
   }
 
-  const profile = await resolveDefaultRemote(projectDir, opts.env);
+  const profile = await guard.resolveDefaultRemote(projectDir, opts.env);
   if (!profile.ok) {
-    printResult({ ok: false, error: profile.error }, { json: true });
+    format.printResult({ ok: false, error: profile.error }, { json: true });
     return EXIT_ERROR;
   }
 
   try {
     return await run(projectDir, profile.remote);
   } catch (err) {
-    printResult({ ok: false, error: (err as Error).message }, { json: true });
+    format.printResult({ ok: false, error: (err as Error).message }, { json: true });
     return EXIT_ERROR;
   }
 }

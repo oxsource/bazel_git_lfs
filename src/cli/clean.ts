@@ -1,8 +1,8 @@
 import { rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { CONFIG_DIR_NAME } from '@/config/paths';
-import { checkInitialized } from '@/cli/common';
-import { printResult, EXIT_OK, EXIT_ERROR } from '@/cli/format';
+import { guard } from '@/cli/common';
+import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
 import { COMMANDS, DIRS } from '@/config/constants';
 
 export interface CleanCliOptions {
@@ -47,13 +47,13 @@ export async function runClean(projectDir: string): Promise<CleanResult> {
 export async function runCleanCommand(opts: CleanCliOptions): Promise<number> {
   const projectDir = opts.cwd;
 
-  const guard = checkInitialized(projectDir);
-  if (!guard.ok) {
-    printResult({ ok: false, error: guard.error }, { json: true });
+  const g = guard.checkInitialized(projectDir);
+  if (!g.ok) {
+    format.printResult({ ok: false, error: g.error }, { json: true });
     return EXIT_ERROR;
   }
 
   const result = await runClean(projectDir);
-  printResult(result, { json: true });
+  format.printResult(result, { json: true });
   return EXIT_OK;
 }

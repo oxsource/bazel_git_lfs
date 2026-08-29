@@ -1,9 +1,8 @@
-import { checkInitialized } from '@/cli/common';
-import { printResult, EXIT_OK, EXIT_ERROR } from '@/cli/format';
+import { guard } from '@/cli/common';
+import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
 import { runStatusScan } from '@/mirror/status';
 import { GitLfsRepository } from '@/mirror/repository';
-import { resolveDefaultRemote } from '@/cli/common';
-import { sha256HexOfFile } from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 
 export interface StatusCliOptions {
   cwd: string;
@@ -15,15 +14,15 @@ export interface StatusCliOptions {
 export async function runStatusCommand(opts: StatusCliOptions): Promise<number> {
   const projectDir = opts.cwd;
 
-  const guard = checkInitialized(projectDir);
-  if (!guard.ok) {
-    printResult({ ok: false, error: guard.error }, { json: true });
+  const g = guard.checkInitialized(projectDir);
+  if (!g.ok) {
+    format.printResult({ ok: false, error: g.error }, { json: true });
     return EXIT_ERROR;
   }
 
-  const remote = await resolveDefaultRemote(projectDir);
+  const remote = await guard.resolveDefaultRemote(projectDir);
   if (!remote.ok) {
-    printResult({ ok: false, error: remote.error }, { json: true });
+    format.printResult({ ok: false, error: remote.error }, { json: true });
     return EXIT_ERROR;
   }
 
@@ -31,7 +30,7 @@ export async function runStatusCommand(opts: StatusCliOptions): Promise<number> 
   try {
     await repo.ensureWorkingClone();
   } catch (err) {
-    printResult({ ok: false, error: `cannot access mirror: ${(err as Error).message}` }, { json: true });
+    format.printResult({ ok: false, error: `cannot access mirror: ${(err as Error).message}` }, { json: true });
     return EXIT_ERROR;
   }
 
@@ -43,9 +42,9 @@ export async function runStatusCommand(opts: StatusCliOptions): Promise<number> 
 
   const result = await runStatusScan(manifest, {
     materialize: async (relPaths: string[]) => repo.materialize(relPaths),
-    sha256HexOfFile,
+    sha256HexOfFile: sha256.hexOfFile,
   }, filters);
 
-  printResult(result, { json: true });
+  format.printResult(result, { json: true });
   return result.ok ? EXIT_OK : EXIT_ERROR;
 }

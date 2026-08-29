@@ -6,7 +6,7 @@ export interface OutputOptions {
   json?: boolean;
 }
 
-export function printResult(result: unknown, opts: OutputOptions): void {
+function printResult(result: unknown, opts: OutputOptions): void {
   if (opts.json) {
     process.stdout.write(JSON.stringify(result) + '\n');
     return;
@@ -21,7 +21,7 @@ export function printResult(result: unknown, opts: OutputOptions): void {
   process.stdout.write(JSON.stringify(result) + '\n');
 }
 
-export function printError(message: string, opts: OutputOptions = {}, exitCode = EXIT_ERROR): void {
+function printError(message: string, opts: OutputOptions = {}, exitCode = EXIT_ERROR): void {
   if (opts.json) {
     process.stdout.write(JSON.stringify({ ok: false, error: message }) + '\n');
   } else {
@@ -30,10 +30,8 @@ export function printError(message: string, opts: OutputOptions = {}, exitCode =
   process.exitCode = exitCode;
 }
 
-export function printUsageError(message: string, opts: OutputOptions = {}): void {
+function printUsageError(message: string, opts: OutputOptions = {}): void {
   printError(message, opts, EXIT_USAGE);
 }
 
-export function exitWith(code: number): void {
-  process.exitCode = code;
-}
+export const format = { printResult, printError, printUsageError };

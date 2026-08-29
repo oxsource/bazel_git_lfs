@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { projectConfigDir } from '@/config/paths';
+import { paths } from '@/config/paths';
 import { FsProfileStore, ConfigError } from '@/config/store';
 import { ConfigResolver } from '@/config/resolve';
 import { FsSnapshotStore } from '@/inspect/snapshot';
@@ -19,26 +19,21 @@ export interface RemoteInfo {
 export type GuardResult = { ok: true } | { ok: false; error: string };
 
 /** The initialized-config-area precondition (FR-013). */
-export function checkInitialized(projectDir: string): GuardResult {
-  if (!existsSync(projectConfigDir(projectDir))) {
+function checkInitialized(projectDir: string): GuardResult {
+  if (!existsSync(paths.projectConfigDir(projectDir))) {
     return { ok: false, error: NOT_INITIALIZED_MESSAGE(projectDir) };
   }
   return { ok: true };
 }
 
-/** The persisted-snapshot precondition (FR-013). */
-export function checkSnapshot(projectDir: string): GuardResult {
+function checkSnapshot(projectDir: string): GuardResult {
   if (!existsSync(new FsSnapshotStore().snapshotPath(projectDir))) {
     return { ok: false, error: NO_SNAPSHOT_MESSAGE };
   }
   return { ok: true };
 }
 
-/**
- * The effective-default-remote-profile precondition for pull/push (FR-012).
- * Stage 1's ConfigError message already names the missing configuration.
- */
-export async function resolveDefaultRemote(
+async function resolveDefaultRemote(
   cwd: string,
   env?: NodeJS.ProcessEnv,
 ): Promise<{ ok: true; remote: RemoteInfo } | { ok: false; error: string }> {
@@ -53,3 +48,5 @@ export async function resolveDefaultRemote(
     return { ok: false, error: (err as Error).message };
   }
 }
+
+export const guard = { checkInitialized, checkSnapshot, resolveDefaultRemote };

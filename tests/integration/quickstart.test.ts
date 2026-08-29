@@ -7,7 +7,7 @@ import { buildProgram } from '@/cli/index';
 import { createTestMirror, gitLfsAvailable, type TestMirror } from '../helpers/test-mirror';
 import { startOriginServer, fixtureRoutes, type OriginServer } from '../helpers/origin-server';
 import { ObjectsStore } from '@/objects/store';
-import { sha256HexOfBuffer } from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '../fixtures/artifacts');
 const lfs = gitLfsAvailable();
@@ -49,8 +49,8 @@ function tempProject(): string {
 }
 
 const ALPHA = readFileSync(join(FIXTURES, 'alpha.bin'));
-const ALPHA_SHA = sha256HexOfBuffer(ALPHA);
-const BETA_SHA = sha256HexOfBuffer(readFileSync(join(FIXTURES, 'beta.bin')));
+const ALPHA_SHA = sha256.hexOfBuffer(ALPHA);
+const BETA_SHA = sha256.hexOfBuffer(readFileSync(join(FIXTURES, 'beta.bin')));
 
 
 describe.skipIf(!lfs)('quickstart.md flow via the real CLI surface', () => {

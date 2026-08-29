@@ -18,7 +18,7 @@ import {
   runRemoteAliasList,
   runRemoteAliasRemove,
 } from '@/cli/remote';
-import { printUsageError, OutputOptions } from '@/cli/format';
+import { format, OutputOptions } from '@/cli/format';
 import { COMMANDS, REMOTE_SUBCOMMANDS, ALIAS_SUBCOMMANDS, TOOL_NAME } from '@/config/constants';
 
 const VERSION: string = __BGL_VERSION__;
@@ -276,7 +276,7 @@ export function run(argv: string[]): void {
       return;
     }
     const message = (error.message ?? 'Unknown error').replace(/^error: /, '');
-    printUsageError(message);
+    format.printUsageError(message);
   }
 }
 

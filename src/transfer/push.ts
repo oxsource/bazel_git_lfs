@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { FsSnapshotStore } from '@/inspect/snapshot';
 import type { Dependency } from '@/inspect/models';
 import { ObjectsStore } from '@/objects/store';
-import { isSha256Hex } from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 import { mergeManifest } from '@/mirror/manifest';
 import type { MirrorManifest, RemoteInfo } from '@/mirror/models';
 import { GitError } from '@/mirror/lfs';
@@ -151,7 +151,7 @@ async function classify(
     status: 'failed',
   };
 
-  if (!dependency.sha256 || !isSha256Hex(dependency.sha256)) {
+  if (!dependency.sha256 || !sha256.isHex(dependency.sha256)) {
     return {
       result: {
         ...base,

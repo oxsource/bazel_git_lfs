@@ -7,11 +7,7 @@ import type { Readable as ReadableStream } from 'node:stream';
 import { CONFIG_DIR_NAME } from '@/config/paths';
 import { DIRS } from '@/config/constants';
 import { deriveObjectPath } from '@/objects/object-path';
-import {
-  sha256HexOfBuffer,
-  sha256HexOfFile,
-  isSha256Hex,
-} from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 import type { ObjectRef } from '@/objects/models';
 
 export class HashMismatchError extends Error {
@@ -60,15 +56,15 @@ export class ObjectsStore {
    * even when the file does not exist (use `has`/`put` to work with it).
    * Throws when sha256 is not a valid 64-char hex string.
    */
-  pathFor(primaryUrl: string, sha256: string): ObjectRef {
-    if (!isSha256Hex(sha256)) {
-      throw new Error(`invalid sha256 "${sha256}": expected 64-char lowercase hex`);
+  pathFor(primaryUrl: string, shaHex: string): ObjectRef {
+    if (!sha256.isHex(shaHex)) {
+      throw new Error(`invalid sha256 "${shaHex}": expected 64-char lowercase hex`);
     }
-    const path = deriveObjectPath(primaryUrl, sha256);
-    const relativePath = `${path.directory}/${sha256}`;
+    const path = deriveObjectPath(primaryUrl, shaHex);
+    const relativePath = `${path.directory}/${shaHex}`;
     return {
       url: primaryUrl,
-      sha256,
+      sha256: shaHex,
       relativePath,
       absolutePath: join(this.objectsDir, relativePath),
       fallback: path.fallback,
@@ -83,7 +79,7 @@ export class ObjectsStore {
     } catch {
       return false;
     }
-    const actual = await sha256HexOfFile(ref.absolutePath);
+    const actual = await sha256.hexOfFile(ref.absolutePath);
     return actual === ref.sha256;
   }
 
@@ -108,7 +104,7 @@ export class ObjectsStore {
         const source = isReadable(content) ? content : iterableToReadable(content);
         await pipeline(source, createWriteStream(tempPath));
       }
-      const actual = await sha256HexOfFile(tempPath);
+      const actual = await sha256.hexOfFile(tempPath);
       if (actual !== ref.sha256) {
         throw new HashMismatchError(
           `object content does not match declared sha256 (expected ${ref.sha256}, got ${actual})`,
@@ -144,7 +140,7 @@ export class ObjectsStore {
     } catch {
       return 'absent';
     }
-    return sha256HexOfBuffer(content) === ref.sha256 ? null : 'hash-mismatch';
+    return sha256.hexOfBuffer(content) === ref.sha256 ? null : 'hash-mismatch';
   }
 
   /** Number of object files currently in the store (any depth). */

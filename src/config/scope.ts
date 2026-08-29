@@ -1,4 +1,4 @@
-import { projectConfigFile, globalConfigFile } from '@/config/paths';
+import { paths } from '@/config/paths';
 
 export type Scope = 'local' | 'global';
 
@@ -13,9 +13,9 @@ export function scopeConfigPath(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
   if (scope === 'global') {
-    return globalConfigFile(env);
+    return paths.globalConfigFile(env);
   }
-  return projectConfigFile(cwd);
+  return paths.projectConfigFile(cwd);
 }
 
 export function resolveScope(

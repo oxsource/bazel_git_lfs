@@ -5,7 +5,7 @@ import { FsSnapshotStore } from '@/inspect/snapshot';
 import type { Dependency } from '@/inspect/models';
 import { ObjectsStore } from '@/objects/store';
 import { downloadAndStore } from '@/objects/download';
-import { isSha256Hex } from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 import type {
   FetchSummary,
   PerDependencyResult,
@@ -84,7 +84,7 @@ async function fetchDependency(
     status: 'failed',
   };
 
-  if (!dependency.sha256 || !isSha256Hex(dependency.sha256)) {
+  if (!dependency.sha256 || !sha256.isHex(dependency.sha256)) {
     return {
       ...base,
       reason: 'missing-sha256',

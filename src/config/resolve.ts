@@ -24,20 +24,20 @@ export class ConfigResolver {
 
   async resolve(opts: ResolveOptions): Promise<ResolvedProfile> {
     const { cwd, env = process.env } = opts;
-    const { projectConfigFile, globalConfigFile } = await import('@/config/paths');
+    const { paths } = await import('@/config/paths');
 
-    const localConfig = await this.store.readConfig(projectConfigFile(cwd));
-    const globalConfig = await this.store.readConfig(globalConfigFile(env));
+    const localConfig = await this.store.readConfig(paths.projectConfigFile(cwd));
+    const globalConfig = await this.store.readConfig(paths.globalConfigFile(env));
 
     return this.pick(localConfig, globalConfig);
   }
 
   async resolveEffective(opts: ResolveOptions): Promise<EffectiveResolution> {
     const { cwd, env = process.env } = opts;
-    const { projectConfigFile, globalConfigFile } = await import('@/config/paths');
+    const { paths } = await import('@/config/paths');
 
-    const localConfig = await this.store.readConfig(projectConfigFile(cwd));
-    const globalConfig = await this.store.readConfig(globalConfigFile(env));
+    const localConfig = await this.store.readConfig(paths.projectConfigFile(cwd));
+    const globalConfig = await this.store.readConfig(paths.globalConfigFile(env));
 
     const candidateAlias = localConfig.active ?? globalConfig.active;
     if (candidateAlias === null) {

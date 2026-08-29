@@ -1,12 +1,10 @@
 import { FsProfileStore, ConfigError, ConfigFile } from '@/config/store';
 import { FsAliasManager } from '@/config/alias';
 import { resolveScope, Scope } from '@/config/scope';
-import { isValidGitUrl, isValidAlias } from '@/config/profile';
+import { profile } from '@/config/profile';
 import { assertNotReserved, RESERVED_ALIASES } from '@/mirror/alias';
 import {
-  printResult,
-  printError,
-  printUsageError,
+  format,
   OutputOptions,
   EXIT_OK,
   EXIT_ERROR,
@@ -72,7 +70,7 @@ async function readConfigSafe(
     return await store.readConfig(path);
   } catch (err) {
     if (err instanceof ConfigError) {
-      printError(err.message, opts);
+      format.printError(err.message, opts);
       return null;
     }
     throw err;
@@ -85,18 +83,18 @@ export async function runRemoteAdd(opts: RemoteAddOptions): Promise<number> {
   const { configPath } = resolveScope(scope, opts.cwd, env);
   const store = new FsProfileStore();
   const aliases = new FsAliasManager();
-  const { globalConfigFile } = await import('@/config/paths');
+  const { paths } = await import('@/config/paths');
 
   const alias = opts.alias ?? DEFAULT_ALIAS;
-  if (!isValidAlias(alias)) {
-    printUsageError(`Invalid alias "${alias}" (allowed: letters, digits, . _ -).`, opts);
+  if (!profile.isValidAlias(alias)) {
+    format.printUsageError(`Invalid alias "${alias}" (allowed: letters, digits, . _ -).`, opts);
     return EXIT_USAGE;
   }
 
   try {
     assertNotReserved(alias);
   } catch (err) {
-    printUsageError((err as Error).message, opts);
+    format.printUsageError((err as Error).message, opts);
     return EXIT_USAGE;
   }
 
@@ -104,7 +102,7 @@ export async function runRemoteAdd(opts: RemoteAddOptions): Promise<number> {
   if (config === null) {
     return EXIT_ERROR;
   }
-  const globalConfig = await readConfigSafe(store, globalConfigFile(env), opts);
+  const globalConfig = await readConfigSafe(store, paths.globalConfigFile(env), opts);
   if (globalConfig === null) {
     return EXIT_ERROR;
   }
@@ -120,16 +118,16 @@ export async function runRemoteAdd(opts: RemoteAddOptions): Promise<number> {
     } catch (err) {
       const error = err as { isCanceled?: boolean };
       if (error.isCanceled) {
-        printError('Initialization canceled; nothing was written.', opts, 130);
+        format.printError('Initialization canceled; nothing was written.', opts, 130);
         return 130;
       }
-      printError(`Wizard failed: ${(err as Error).message}`, opts);
+      format.printError(`Wizard failed: ${(err as Error).message}`, opts);
       return EXIT_ERROR;
     }
   }
 
   if (url === undefined || url.trim().length === 0) {
-    printUsageError('Missing required value: --url <url>', opts);
+    format.printUsageError('Missing required value: --url <url>', opts);
     return EXIT_USAGE;
   }
 
@@ -138,14 +136,14 @@ export async function runRemoteAdd(opts: RemoteAddOptions): Promise<number> {
     url = resolved.url;
   } catch (err) {
     if (err instanceof ConfigError) {
-      printError(err.message, opts);
+      format.printError(err.message, opts);
       return EXIT_ERROR;
     }
     throw err;
   }
 
-  if (!isValidGitUrl(url)) {
-    printError(`Invalid mirror repository URL "${url}" (expected HTTP(S) or SSH git URL).`, opts);
+  if (!profile.isValidGitUrl(url)) {
+    format.printError(`Invalid mirror repository URL "${url}" (expected HTTP(S) or SSH git URL).`, opts);
     return EXIT_ERROR;
   }
 
@@ -154,11 +152,11 @@ export async function runRemoteAdd(opts: RemoteAddOptions): Promise<number> {
   try {
     await store.writeConfig(configPath, config);
   } catch (err) {
-    printError(`Cannot save config to ${configPath}: ${(err as Error).message}`, opts);
+    format.printError(`Cannot save config to ${configPath}: ${(err as Error).message}`, opts);
     return EXIT_ERROR;
   }
 
-  printResult(
+  format.printResult(
     {
       ok: true,
       alias,
@@ -178,8 +176,8 @@ export async function runRemoteSetDefault(opts: RemoteDefaultOptions): Promise<n
   const { configPath } = resolveScope(scope, opts.cwd, env);
   const store = new FsProfileStore();
 
-  if (!isValidAlias(opts.alias)) {
-    printUsageError(`Invalid alias "${opts.alias}" (allowed: letters, digits, . _ -).`, opts);
+  if (!profile.isValidAlias(opts.alias)) {
+    format.printUsageError(`Invalid alias "${opts.alias}" (allowed: letters, digits, . _ -).`, opts);
     return EXIT_USAGE;
   }
 
@@ -188,7 +186,7 @@ export async function runRemoteSetDefault(opts: RemoteDefaultOptions): Promise<n
     return EXIT_ERROR;
   }
   if (!config.profiles[opts.alias]) {
-    printError(`Alias "${opts.alias}" does not exist in the ${scope} scope.`, opts);
+    format.printError(`Alias "${opts.alias}" does not exist in the ${scope} scope.`, opts);
     return EXIT_ERROR;
   }
 
@@ -197,11 +195,11 @@ export async function runRemoteSetDefault(opts: RemoteDefaultOptions): Promise<n
   try {
     await store.writeConfig(configPath, updated);
   } catch (err) {
-    printError(`Cannot save config to ${configPath}: ${(err as Error).message}`, opts);
+    format.printError(`Cannot save config to ${configPath}: ${(err as Error).message}`, opts);
     return EXIT_ERROR;
   }
 
-  printResult(
+  format.printResult(
     {
       ok: true,
       alias: opts.alias,
@@ -225,7 +223,7 @@ export async function runRemoteRemove(opts: RemoteRemoveOptions): Promise<number
     return EXIT_ERROR;
   }
   if (!config.profiles[opts.alias]) {
-    printError(`Alias "${opts.alias}" does not exist in the ${scope} scope.`, opts);
+    format.printError(`Alias "${opts.alias}" does not exist in the ${scope} scope.`, opts);
     return EXIT_ERROR;
   }
 
@@ -243,11 +241,11 @@ export async function runRemoteRemove(opts: RemoteRemoveOptions): Promise<number
   try {
     await store.writeConfig(configPath, updated);
   } catch (err) {
-    printError(`Cannot save config to ${configPath}: ${(err as Error).message}`, opts);
+    format.printError(`Cannot save config to ${configPath}: ${(err as Error).message}`, opts);
     return EXIT_ERROR;
   }
 
-  printResult(
+  format.printResult(
     {
       ok: true,
       alias: opts.alias,
@@ -264,10 +262,10 @@ export async function runRemoteRemove(opts: RemoteRemoveOptions): Promise<number
 export async function runRemoteList(opts: RemoteListOptions): Promise<number> {
   const env = opts.env ?? process.env;
   const store = new FsProfileStore();
-  const { projectConfigFile, globalConfigFile } = await import('@/config/paths');
+  const { paths } = await import('@/config/paths');
 
-  const localPath = projectConfigFile(opts.cwd);
-  const globalPath = globalConfigFile(env);
+  const localPath = paths.projectConfigFile(opts.cwd);
+  const globalPath = paths.globalConfigFile(env);
 
   const localConfig = await readConfigSafe(store, localPath, opts);
   if (localConfig === null) {
@@ -284,7 +282,7 @@ export async function runRemoteList(opts: RemoteListOptions): Promise<number> {
     try {
       const effective = await resolver.resolveEffective({ cwd: opts.cwd, env });
       if (opts.json) {
-        printResult(
+        format.printResult(
           {
             ok: true,
             effective: true,
@@ -304,7 +302,7 @@ export async function runRemoteList(opts: RemoteListOptions): Promise<number> {
       }
     } catch (err) {
       if (err instanceof ConfigError) {
-        printError(err.message, opts);
+        format.printError(err.message, opts);
         return EXIT_ERROR;
       }
       throw err;
@@ -328,7 +326,7 @@ export async function runRemoteList(opts: RemoteListOptions): Promise<number> {
   const entries = opts.global ? globalEntries : [...localEntries, ...globalEntries];
 
   if (opts.json) {
-    printResult({ ok: true, profiles: entries }, opts);
+    format.printResult({ ok: true, profiles: entries }, opts);
   } else {
     if (entries.length === 0) {
       process.stdout.write(
@@ -346,11 +344,11 @@ export async function runRemoteList(opts: RemoteListOptions): Promise<number> {
 
 export async function runRemoteAliasAdd(opts: RemoteAliasAddOptions): Promise<number> {
   const env = opts.env ?? process.env;
-  const { globalConfigFile } = await import('@/config/paths');
+  const { paths } = await import('@/config/paths');
   const store = new FsProfileStore();
   const aliases = new FsAliasManager();
 
-  const configPath = globalConfigFile(env);
+  const configPath = paths.globalConfigFile(env);
   const config = await readConfigSafe(store, configPath, opts);
   if (config === null) {
     return EXIT_ERROR;
@@ -360,14 +358,14 @@ export async function runRemoteAliasAdd(opts: RemoteAliasAddOptions): Promise<nu
   try {
     assertNotReserved(opts.name);
   } catch (err) {
-    printUsageError((err as Error).message, opts);
+    format.printUsageError((err as Error).message, opts);
     return EXIT_USAGE;
   }
   try {
     next = aliases.add(config, opts.name, opts.url);
   } catch (err) {
     if (err instanceof ConfigError) {
-      printError(err.message, opts);
+      format.printError(err.message, opts);
       return EXIT_ERROR;
     }
     throw err;
@@ -376,11 +374,11 @@ export async function runRemoteAliasAdd(opts: RemoteAliasAddOptions): Promise<nu
   try {
     await store.writeConfig(configPath, next);
   } catch (err) {
-    printError(`Cannot save config to ${configPath}: ${(err as Error).message}`, opts);
+    format.printError(`Cannot save config to ${configPath}: ${(err as Error).message}`, opts);
     return EXIT_ERROR;
   }
 
-  printResult(
+  format.printResult(
     {
       ok: true,
       name: opts.name,
@@ -395,28 +393,28 @@ export async function runRemoteAliasAdd(opts: RemoteAliasAddOptions): Promise<nu
 
 export async function runRemoteAliasList(opts: RemoteAliasListOptions): Promise<number> {
   const env = opts.env ?? process.env;
-  const { globalConfigFile } = await import('@/config/paths');
+  const { paths } = await import('@/config/paths');
   const store = new FsProfileStore();
   const aliases = new FsAliasManager();
 
-  const configPath = globalConfigFile(env);
+  const configPath = paths.globalConfigFile(env);
   const config = await readConfigSafe(store, configPath, opts);
   if (config === null) {
     return EXIT_ERROR;
   }
   const list = aliases.list(config);
 
-  printResult({ ok: true, aliases: list, configPath }, opts);
+  format.printResult({ ok: true, aliases: list, configPath }, opts);
   return EXIT_OK;
 }
 
 export async function runRemoteAliasRemove(opts: RemoteAliasRemoveOptions): Promise<number> {
   const env = opts.env ?? process.env;
-  const { globalConfigFile } = await import('@/config/paths');
+  const { paths } = await import('@/config/paths');
   const store = new FsProfileStore();
   const aliases = new FsAliasManager();
 
-  const configPath = globalConfigFile(env);
+  const configPath = paths.globalConfigFile(env);
   const config = await readConfigSafe(store, configPath, opts);
   if (config === null) {
     return EXIT_ERROR;
@@ -427,11 +425,11 @@ export async function runRemoteAliasRemove(opts: RemoteAliasRemoveOptions): Prom
   try {
     await store.writeConfig(configPath, next);
   } catch (err) {
-    printError(`Cannot save config to ${configPath}: ${(err as Error).message}`, opts);
+    format.printError(`Cannot save config to ${configPath}: ${(err as Error).message}`, opts);
     return EXIT_ERROR;
   }
 
-  printResult(
+  format.printResult(
     {
       ok: true,
       name: opts.name,

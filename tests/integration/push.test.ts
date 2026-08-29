@@ -7,7 +7,7 @@ import { createTestMirror, gitLfsAvailable, type TestMirror } from '../helpers/t
 import { runPush } from '@/transfer/push';
 import { runPushCommand } from '@/cli/push';
 import { ObjectsStore } from '@/objects/store';
-import { sha256HexOfBuffer } from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 import { FsProfileStore } from '@/config/store';
 import { FsSnapshotStore } from '@/inspect/snapshot';
 import type { Dependency } from '@/inspect/models';
@@ -48,7 +48,7 @@ async function makeProject(
 
   const store = ObjectsStore.forProject(projectDir);
   for (const o of objects) {
-    await store.put(store.pathFor(o.url, sha256HexOfBuffer(o.bytes)), o.bytes);
+    await store.put(store.pathFor(o.url, sha256.hexOfBuffer(o.bytes)), o.bytes);
   }
 
   const snapshot = {
@@ -74,8 +74,8 @@ describe.skipIf(!lfs)('push (US2) end-to-end against a real git+git-lfs mirror',
     mirror = createTestMirror();
     const alpha = readFileSync(join(FIXTURES, 'alpha.bin'));
     const beta = readFileSync(join(FIXTURES, 'beta.bin'));
-    const alphaSha = sha256HexOfBuffer(alpha);
-    const betaSha = sha256HexOfBuffer(beta);
+    const alphaSha = sha256.hexOfBuffer(alpha);
+    const betaSha = sha256.hexOfBuffer(beta);
 
     const project = await makeProject(
       [
@@ -120,7 +120,7 @@ describe.skipIf(!lfs)('push (US2) end-to-end against a real git+git-lfs mirror',
   it('is idempotent on re-push (already-mirrored, no new commit)', { timeout: 120_000 }, async () => {
     // A payload no earlier test in this file pushed to the shared mirror.
     const gamma = Buffer.from(`gamma-${Date.now()}-${Math.random()}`);
-    const gammaSha = sha256HexOfBuffer(gamma);
+    const gammaSha = sha256.hexOfBuffer(gamma);
     const project = await makeProject(
       [dep('gamma', ['https://example.com/gamma.tar.gz'], gammaSha)],
       [{ url: 'https://example.com/gamma.tar.gz', bytes: gamma }],

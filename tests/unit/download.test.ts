@@ -4,11 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ObjectsStore } from '@/objects/store';
 import { downloadAndStore } from '@/objects/download';
-import { sha256HexOfBuffer } from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 
 const CONTENT = Buffer.from('downloadable-fixture-content');
-const SHA = sha256HexOfBuffer(CONTENT);
-const OTHER_SHA = sha256HexOfBuffer(Buffer.from('entirely-different-bytes'));
+const SHA = sha256.hexOfBuffer(CONTENT);
+const OTHER_SHA = sha256.hexOfBuffer(Buffer.from('entirely-different-bytes'));
 
 function tempStore(): ObjectsStore {
   return new ObjectsStore(join(mkdtempSync(join(tmpdir(), 'bgl-dl-')), 'objects'));

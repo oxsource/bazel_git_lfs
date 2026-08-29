@@ -1,42 +1,42 @@
 import { describe, expect, it } from 'vitest';
-import { isValidAlias, isValidGitUrl, hostFromUrl } from '@/config/profile';
+import { profile } from '@/config/profile';
 
 describe('profile validation', () => {
   it('accepts valid aliases', () => {
-    expect(isValidAlias('default')).toBe(true);
-    expect(isValidAlias('ci-team')).toBe(true);
-    expect(isValidAlias('dev_env.1')).toBe(true);
+    expect(profile.isValidAlias('default')).toBe(true);
+    expect(profile.isValidAlias('ci-team')).toBe(true);
+    expect(profile.isValidAlias('dev_env.1')).toBe(true);
   });
 
   it('rejects invalid aliases', () => {
-    expect(isValidAlias('')).toBe(false);
-    expect(isValidAlias('has space')).toBe(false);
-    expect(isValidAlias('../evil')).toBe(false);
-    expect(isValidAlias('a/b')).toBe(false);
+    expect(profile.isValidAlias('')).toBe(false);
+    expect(profile.isValidAlias('has space')).toBe(false);
+    expect(profile.isValidAlias('../evil')).toBe(false);
+    expect(profile.isValidAlias('a/b')).toBe(false);
   });
 
   it('accepts http(s) urls', () => {
-    expect(isValidGitUrl('https://gitlab.example.com/bazel/mirror.git')).toBe(true);
-    expect(isValidGitUrl('http://gitlab.example.com/bazel/mirror.git')).toBe(true);
+    expect(profile.isValidGitUrl('https://gitlab.example.com/bazel/mirror.git')).toBe(true);
+    expect(profile.isValidGitUrl('http://gitlab.example.com/bazel/mirror.git')).toBe(true);
   });
 
   it('accepts ssh urls', () => {
-    expect(isValidGitUrl('git@gitlab.example.com:bazel/mirror.git')).toBe(true);
+    expect(profile.isValidGitUrl('git@gitlab.example.com:bazel/mirror.git')).toBe(true);
   });
 
   it('rejects invalid urls', () => {
-    expect(isValidGitUrl('')).toBe(false);
-    expect(isValidGitUrl('not-a-url')).toBe(false);
-    expect(isValidGitUrl('ftp://example.com/x')).toBe(false);
-    expect(isValidGitUrl('@alias')).toBe(false);
+    expect(profile.isValidGitUrl('')).toBe(false);
+    expect(profile.isValidGitUrl('not-a-url')).toBe(false);
+    expect(profile.isValidGitUrl('ftp://example.com/x')).toBe(false);
+    expect(profile.isValidGitUrl('@alias')).toBe(false);
   });
 
   it('derives host from http(s) urls', () => {
-    expect(hostFromUrl('https://gitlab.example.com/bazel/mirror.git')).toBe('gitlab.example.com');
-    expect(hostFromUrl('http://gitlab.example.com/m.git')).toBe('gitlab.example.com');
+    expect(profile.hostFromUrl('https://gitlab.example.com/bazel/mirror.git')).toBe('gitlab.example.com');
+    expect(profile.hostFromUrl('http://gitlab.example.com/m.git')).toBe('gitlab.example.com');
   });
 
   it('derives host from ssh urls', () => {
-    expect(hostFromUrl('git@gitlab.example.com:bazel/mirror.git')).toBe('gitlab.example.com');
+    expect(profile.hostFromUrl('git@gitlab.example.com:bazel/mirror.git')).toBe('gitlab.example.com');
   });
 });

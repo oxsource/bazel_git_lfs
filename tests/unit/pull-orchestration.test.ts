@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { runPull } from '@/transfer/pull';
 import { ObjectsStore } from '@/objects/store';
-import { sha256HexOfBuffer } from '@/objects/sha256';
+import { sha256 } from '@/objects/sha256';
 import { emptyManifest, mergeManifest } from '@/mirror/manifest';
 import type { ArtifactRepository, ManifestReadResult } from '@/mirror/repository';
 import type { MirrorManifest, RemoteInfo } from '@/mirror/models';
@@ -13,7 +13,7 @@ import type { Dependency } from '@/inspect/models';
 import { GitError } from '@/mirror/lfs';
 
 const ALPHA = Buffer.from('alpha-pull-bytes');
-const ALPHA_SHA = sha256HexOfBuffer(ALPHA);
+const ALPHA_SHA = sha256.hexOfBuffer(ALPHA);
 const URL_A = 'https://github.com/facebook/react/a.tar.gz';
 const REMOTE: RemoteInfo = { alias: 'default', url: 'file:///tmp/fake-mirror.git' };
 
@@ -26,7 +26,7 @@ async function makeProject(deps: Dependency[], objects: Array<{ url: string; byt
   mkdirSync(join(projectDir, '.bazel_git_lfs'), { recursive: true });
   const store = ObjectsStore.forProject(projectDir);
   for (const o of objects) {
-    await store.put(store.pathFor(o.url, sha256HexOfBuffer(o.bytes)), o.bytes);
+    await store.put(store.pathFor(o.url, sha256.hexOfBuffer(o.bytes)), o.bytes);
   }
   const snapshot = {
     projectDir,
