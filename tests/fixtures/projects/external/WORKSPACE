@@ -1,0 +1,10 @@
+# Entry file that loads external repository B's bzl and sets up B itself.
+http_archive(
+    name = "B",
+    urls = ["file:///tmp/bazel_git_lfs_test/B.tar.gz"],
+    sha256 = "eb2d14519eebc28edff8201a03cddbd12794fab5391935af61bcbc56f3a45a2d",
+    strip_prefix = "B-1.0",
+)
+load("@B//:deps.bzl", "setup_b")
+
+setup_b()

@@ -58,8 +58,11 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
       queryUsed: result.queryUsed,
       queryExternalRepos: result.queryExternalRepos,
       dependencyRelations: result.dependencyRelations,
+      conflicts: result.conflicts,
+      hasConflicts: result.hasConflicts,
     },
     { json: true },
   );
-  return EXIT_OK;
+
+  return result.hasConflicts ? EXIT_ERROR : EXIT_OK;
 }
