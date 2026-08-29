@@ -1,6 +1,6 @@
 # Tasks: Bazel Dependency Mirror Tool
 
-**Input**: Design documents from `/specs/001-bazel-dependency-mirror/`
+**Input**: Design documents from `/specs/001-bazel-git-lfs-guide/`
 
 **Prerequisites**: [plan.md](./plan.md) (required), [spec.md](./spec.md)
 

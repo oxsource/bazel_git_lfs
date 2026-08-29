@@ -2,7 +2,7 @@
 
 **Branch**: `001-bazel-dependency-mirror` | **Date**: 2026-08-28 (rev. 2026-08-29) | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `/specs/001-bazel-dependency-mirror/spec.md`
+**Input**: Feature specification from `/specs/001-bazel-git-lfs-guide/spec.md`
 
 ## Summary
 
@@ -31,10 +31,11 @@ The V1 requirements are split into **6 sequential stages**, each independently r
 
 - **Objective**: Stand up the TypeScript/Node.js project and the configuration foundation every other command depends on.
 - **Roughly what it does**:
-  - Project scaffold (package.json, TypeScript build, test setup, CLI command dispatch with `init`).
-  - `init` interactive wizard collecting mirror repo URL, GitLab host, and Git LFS settings, saved as a local profile tagged by namespace in a Maven-style global config directory (`~/.bazel-git-lfs`).
+  - Project scaffold (package.json, TypeScript build, test setup, CLI command dispatch).
+  - `init` creates a non-versioned `.bazel_git_lfs/` config directory in the project (like `git init`), excluded from version control; no prompts.
+  - `remote` command manages mirror-repository profiles (add/list/remove/set-default) with **project-local scope by default** and **global scope via `--global`** (git-style layering, project-local wins); namespace-tagged profiles with `--namespace` override; a global alias table (`remote.alias.<name> = <url>`) lets `remote add --mirror-repo @<name>` reference mirrors by short token.
   - Active-profile selection with `--namespace` override; credentials fully delegated to system git (no secrets stored).
-- **Exit signal**: `bazel-git-lfs init` creates/updates a profile; subsequent commands can resolve the active config.
+- **Exit signal**: `init` creates the config area; `remote add` saves a profile; subsequent commands (or `remote list --effective`) can resolve the effective config.
 
 ### Stage 2 — Discovery (`scan`)
 
