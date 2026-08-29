@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Mirror Consumption (verify / list / search / clean)
+# Specification Quality Checklist: Status / Clean
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-08-29

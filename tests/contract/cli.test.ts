@@ -59,16 +59,15 @@ function tempProject(): string {
 }
 
 describe('CLI command surface', () => {
-  it('--help lists all commands (sync superseded by fetch/pull/push)', async () => {
+  it('--help lists all commands', async () => {
     const { stdout } = await runCli(['node', 'bazel-git-lfs', '--help']);
-    for (const cmd of ['init', 'inspect', 'fetch', 'pull', 'push', 'verify', 'list', 'search', 'rewrite']) {
+    for (const cmd of ['init', 'inspect', 'fetch', 'pull', 'push', 'status', 'clean', 'rewrite']) {
       expect(stdout).toContain(cmd);
     }
-    expect(stdout).not.toMatch(/\bsync\b/);
   });
 
   it('stub commands exit non-zero', async () => {
-    for (const cmd of ['verify', 'list', 'search', 'rewrite']) {
+    for (const cmd of ['rewrite']) {
       const { code, stderr } = await runCli(['node', 'bazel-git-lfs', cmd]);
       expect(code).toBe(1);
       expect(stderr).toContain('not implemented');
@@ -76,7 +75,7 @@ describe('CLI command surface', () => {
   });
 
   it('stub commands emit JSON error with --json', async () => {
-    const { stdout } = await runCli(['node', 'bazel-git-lfs', 'verify', '--json']);
+    const { stdout } = await runCli(['node', 'bazel-git-lfs', 'rewrite', '--json']);
     const parsed = JSON.parse(stdout);
     expect(parsed).toEqual({ ok: false, error: expect.stringContaining('not implemented') });
   });

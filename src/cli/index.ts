@@ -5,6 +5,8 @@ import { runInspect } from '@/cli/inspect';
 import { runFetchCommand } from '@/cli/fetch';
 import { runPullCommand } from '@/cli/pull';
 import { runPushCommand } from '@/cli/push';
+import { runStatusCommand } from '@/cli/status';
+import { runCleanCommand } from '@/cli/clean';
 import {
   runRemoteAdd,
   runRemoteSetDefault,
@@ -18,7 +20,7 @@ import { printUsageError, OutputOptions } from '@/cli/format';
 
 const VERSION: string = __BGL_VERSION__;
 
-const STUB_COMMANDS = ['verify', 'list', 'search', 'rewrite'] as const;
+const STUB_COMMANDS = ['rewrite'] as const;
 
 export interface CliDeps {
   cwd?: string;
@@ -85,6 +87,34 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .allowExcessArguments(false)
     .action(async () => {
       process.exitCode = await runPullCommand({ cwd, env });
+    });
+
+  program
+    .command('status')
+    .description(
+      'Check every mirrored artifact\u2019s SHA256 against the manifest and report valid/corrupt/missing (JSON)',
+    )
+    .option('--sha256-prefix <hex>', 'filter by SHA256 prefix (case-insensitive)')
+    .option('--source-url <substring>', 'filter by source URL substring (case-insensitive)')
+    .argument('[keyword]', 'search keyword across artifact names, paths, and URLs')
+    .allowExcessArguments(false)
+    .action(async (keyword: string | undefined, options: { sha256Prefix?: string; sourceUrl?: string }) => {
+      process.exitCode = await runStatusCommand({
+        cwd,
+        sha256Prefix: options.sha256Prefix,
+        sourceUrl: options.sourceUrl,
+        keyword,
+      });
+    });
+
+  program
+    .command('clean')
+    .description(
+      'Remove local objects store, mirror working clone, and snapshot; preserve config (JSON)',
+    )
+    .allowExcessArguments(false)
+    .action(async () => {
+      process.exitCode = await runCleanCommand({ cwd });
     });
 
   const remote = program.command('remote').description('Manage mirror-repository profiles');
