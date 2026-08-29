@@ -125,12 +125,12 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T032 [P] Implement shared CLI precondition helpers (init-check message reuse from Stage 1; snapshot-missing error `no dependency snapshot, run "bazel-git-lfs inspect" first`; default-profile resolution error passthrough) extracted into src/cli/common.ts and used by fetch/pull/push per FR-012/FR-013
-- [ ] T033 [P] Harden interruption recovery: verify working-clone reset/re-clone path in src/mirror/repository.ts covers dirty clone, interrupted push, and corrupt checkout (unit tests with stub git state) per research decision 8 (SC-007)
-- [ ] T034 [P] Contract test for the command surface in tests/contract/cli-surface.spec.ts (fetch/pull/push registered with no args/flags; sync absent; extra args → exit 2; JSON-only stdout; help text lists all commands) per FR-017/FR-018/FR-019
-- [ ] T035 Validate quickstart.md steps end-to-end (init → remote → inspect → fetch → push → idempotent re-push → pull in fresh copy) against the implemented CLI
-- [ ] T036 Run lint, build, and typecheck across the project; fix any issues
-- [ ] T037 Verify `bazel-git-lfs --help` and each command's `--help` output and exit codes follow the contract (fetch/pull/push listed, sync absent)
+- [x] T032 [P] Implement shared CLI precondition helpers (init-check message reuse from Stage 1; snapshot-missing error `no dependency snapshot, run "bazel-git-lfs inspect" first`; default-profile resolution error passthrough) extracted into src/cli/common.ts and used by fetch/pull/push per FR-012/FR-013
+- [x] T033 [P] Harden interruption recovery: verify working-clone reset/re-clone path in src/mirror/repository.ts covers dirty clone, interrupted push, and corrupt checkout (unit tests with stub git state) per research decision 8 (SC-007)
+- [x] T034 [P] Contract test for the command surface in tests/contract/cli-surface.spec.ts (fetch/pull/push registered with no args/flags; sync absent; extra args → exit 2; JSON-only stdout; help text lists all commands) per FR-017/FR-018/FR-019
+- [x] T035 Validate quickstart.md steps end-to-end (init → remote → inspect → fetch → push → idempotent re-push → pull in fresh copy) against the implemented CLI
+- [x] T036 Run lint, build, and typecheck across the project; fix any issues
+- [x] T037 Verify `bazel-git-lfs --help` and each command's `--help` output and exit codes follow the contract (fetch/pull/push listed, sync absent)
 
 ---
 

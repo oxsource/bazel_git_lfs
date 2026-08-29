@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildProgram } from '@/cli/index';
@@ -10,7 +10,7 @@ interface Captured {
   stderr: string;
 }
 
-function runCli(args: string[], cwd?: string): Captured {
+async function runCli(args: string[], cwd?: string): Promise<Captured> {
   const program = buildProgram(cwd ? { cwd } : {});
   const captured: Captured = { stdout: '', stderr: '' };
 
@@ -28,6 +28,10 @@ function runCli(args: string[], cwd?: string): Captured {
   const originalExit = process.exitCode;
   try {
     program.parse(args);
+    // command actions are async — wait for one to set the exit code
+    for (let i = 0; i < 400 && process.exitCode === originalExit; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
     captured.code = process.exitCode;
   } catch (err) {
     const e = err as { code?: string };
@@ -55,42 +59,71 @@ function tempProject(): string {
 }
 
 describe('CLI command surface', () => {
-  it('--help lists all commands (sync superseded by fetch/pull/push)', () => {
-    const { stdout } = runCli(['node', 'bazel-git-lfs', '--help']);
+  it('--help lists all commands (sync superseded by fetch/pull/push)', async () => {
+    const { stdout } = await runCli(['node', 'bazel-git-lfs', '--help']);
     for (const cmd of ['init', 'inspect', 'fetch', 'pull', 'push', 'verify', 'list', 'search', 'rewrite']) {
       expect(stdout).toContain(cmd);
     }
     expect(stdout).not.toMatch(/\bsync\b/);
   });
 
-  it('stub commands exit non-zero', () => {
+  it('stub commands exit non-zero', async () => {
     for (const cmd of ['verify', 'list', 'search', 'rewrite']) {
-      const { code, stderr } = runCli(['node', 'bazel-git-lfs', cmd]);
+      const { code, stderr } = await runCli(['node', 'bazel-git-lfs', cmd]);
       expect(code).toBe(1);
       expect(stderr).toContain('not implemented');
     }
   });
 
-  it('stub commands emit JSON error with --json', () => {
-    const { stdout } = runCli(['node', 'bazel-git-lfs', 'verify', '--json']);
+  it('stub commands emit JSON error with --json', async () => {
+    const { stdout } = await runCli(['node', 'bazel-git-lfs', 'verify', '--json']);
     const parsed = JSON.parse(stdout);
     expect(parsed).toEqual({ ok: false, error: expect.stringContaining('not implemented') });
   });
 
-  it('removed sync stub reports an unknown-command usage error (exit 2)', () => {
-    const { code } = runCli(['node', 'bazel-git-lfs', 'sync']);
+  it('removed sync stub reports an unknown-command usage error (exit 2)', async () => {
+    const { code } = await runCli(['node', 'bazel-git-lfs', 'sync']);
     expect(code).toBe(2);
   });
 
-  it('fetch/pull/push reject extra arguments with a usage error (exit 2)', () => {
+  it('fetch/pull/push reject extra arguments with a usage error (exit 2)', async () => {
     for (const cmd of ['fetch', 'pull', 'push']) {
-      const { code } = runCli(['node', 'bazel-git-lfs', cmd, 'extra-arg']);
+      const { code } = await runCli(['node', 'bazel-git-lfs', cmd, 'extra-arg']);
       expect(code).toBe(2);
     }
   });
 
-  it('init command is registered with help', () => {
-    const { stdout } = runCli(['node', 'bazel-git-lfs', 'init', '--help']);
+  it('fetch reports errors as JSON on stdout only (JSON-only contract)', async () => {
+    const proj = tempProject();
+    const { code, stdout, stderr } = await runCli(['node', 'bazel-git-lfs', 'fetch'], proj);
+    expect(code).toBe(1);
+    const parsed = JSON.parse(stdout); // stdout is the only channel; must be JSON
+    expect(parsed).toEqual({
+      ok: false,
+      error: expect.stringContaining('Not a valid bazel_git_lfs project'),
+    });
+    expect(stderr).toBe('');
+  });
+
+  it('pull/push without a default profile report JSON errors (exit 1)', async () => {
+    for (const cmd of ['pull', 'push']) {
+      const proj = tempProject();
+      await runCli(['node', 'bazel-git-lfs', 'init'], proj);
+      writeFileSync(join(proj, '.bazel_git_lfs', 'dependencies.json'), JSON.stringify({
+        projectDir: proj, dependencies: [], warnings: [], filesScanned: [],
+        queryUsed: false, queryExternalRepos: null, dependencyRelations: null,
+      }));
+      const { code, stdout } = await runCli(['node', 'bazel-git-lfs', cmd], proj);
+      expect(code).toBe(1);
+      const parsed = JSON.parse(stdout);
+      expect(parsed.ok).toBe(false);
+      expect(parsed.error).toMatch(/[Nn]o mirror configured/);
+      rmSync(proj, { recursive: true, force: true });
+    }
+  });
+
+  it('init command is registered with help', async () => {
+    const { stdout } = await runCli(['node', 'bazel-git-lfs', 'init', '--help']);
     expect(stdout).toContain('init');
   });
 
@@ -98,7 +131,7 @@ describe('CLI command surface', () => {
     const proj = tempProject();
     const { existsSync } = await import('node:fs');
     const { join: pathJoin } = await import('node:path');
-    runCli(['node', 'bazel-git-lfs', 'init'], proj);
+    await runCli(['node', 'bazel-git-lfs', 'init'], proj);
     const target = pathJoin(proj, '.bazel_git_lfs');
     await vi.waitFor(() => {
       expect(existsSync(target)).toBe(true);
