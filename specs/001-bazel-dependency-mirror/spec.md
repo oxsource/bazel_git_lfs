@@ -16,6 +16,13 @@
 - Q: npm publishing target → A: public npm registry (npmjs.org)
 - Q: Phasing of future stages (V2/V3) → A: only brief roadmap outline of future stages now; full documents deferred until each stage is started
 
+### Session 2026-08-29
+
+- Q: How the CLI locates cloud config for a namespace → A: `init` runs an interactive wizard (mirror URL, GitLab host, LFS settings) producing a locally saved profile tagged by namespace; no cloud config fetch in V1 (mavenrepo-style cloud config deferred to V2)
+- Q: How the tool authenticates to the GitLab mirror → A: delegate to system git credential helpers / SSH keys; the tool stores no secrets
+- Q: How runtime commands select the profile → A: Maven-style global config in the user's home directory (e.g., `~/.bazel-git-lfs`); one active profile by default with `--namespace` override
+- Q: Implementation language → A: the CLI is implemented in TypeScript on Node.js (published as a public npm package)
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Scan a Bazel project and discover HTTP dependencies (Priority: P1)
@@ -161,10 +168,11 @@ The tool is distributed as a Node.js command-line utility published to the publi
 - **FR-011b**: System MUST NOT rewrite a dependency URL that is not yet present in the mirror, leaving it unchanged.
 - **FR-012**: System MUST abstract the artifact repository behind an interface so the mirror backend (currently Git LFS) can be replaced in the future without rewriting discovery or cache logic.
 - **FR-013**: System MUST NOT modify business Bazel projects during scan/sync; only the dedicated `rewrite` command (with an explicit write flag) modifies business projects.
-- **FR-014**: System MUST initialize local configuration via an `init` command.
+- **FR-014**: System MUST initialize local configuration via an `init` command. `init` is an interactive wizard (mirror repo URL, GitLab host, Git LFS settings) that saves a local profile tagged by a user-provided namespace; all config resolution is local, with no cloud config fetch in V1. Profiles live in a Maven-style global config directory under the user's home (e.g., `~/.bazel-git-lfs`), with one active profile used by default and overridable per-invocation via `--namespace`.
 - **FR-014a**: System MUST be published and distributed as a public npm package (npmjs.org), exposing a `bazel-git-lfs` command-line binary.
 - **FR-014b**: System MUST provide a documented, repeatable release process including versioning and publishing steps.
 - **FR-015**: System MUST call system `git` and `git-lfs` (e.g., clone, lfs install, add, commit, push) and MUST NOT reimplement Git/Git LFS protocols.
+- **FR-016**: System MUST NOT store or manage Git credentials; it MUST rely on system git credential helpers / SSH keys for all authentication to the mirror (clone, push, fetch).
 
 ### Key Entities
 
@@ -175,11 +183,11 @@ The tool is distributed as a Node.js command-line utility published to the publi
 
 ## Future Stages (Brief Roadmap)
 
-The following stages are outlined at a high level only. Full proposal documents are not written yet; each stage will be specified and planned when started. The core model (dependency discovery, caching, content-addressed integrity, pluggable repository backend) is designed to carry forward across all stages.
+The following stages are outlined at a high level only. Full design planning guides are not written yet; each stage will be specified and planned when started. The core model (dependency discovery, caching, content-addressed integrity, pluggable repository backend) is designed to carry forward across all stages.
 
 - **V1 (current spec)**: scan / sync / cache / verify / list / search / rewrite + init, distributed as a public npm package, mirroring into Git LFS on self-hosted GitLab.
-- **V2 (later proposal)**: company artifact mirror service — HTTP mirror endpoint, permissions/access control, CI integration, higher concurrency, caching service.
-- **V3 (later proposal)**: replace Git as artifact storage with object storage (S3 / MinIO / S3-compatible), Git retaining only metadata, configuration, scripts, and manifest.
+- **V2 (later design planning guide)**: company artifact mirror service — HTTP mirror endpoint, permissions/access control, CI integration, higher concurrency, caching service; also adds mavenrepo-style cloud/remote configuration so `init` can resolve a full profile from a bare namespace (simplifying CLI input).
+- **V3 (later design planning guide)**: replace Git as artifact storage with object storage (S3 / MinIO / S3-compatible), Git retaining only metadata, configuration, scripts, and manifest.
 
 ## Success Criteria *(mandatory)*
 
@@ -200,5 +208,7 @@ The following stages are outlined at a high level only. Full proposal documents 
 - Phase 1 does NOT modify business Bazel projects during scan/sync; URL rewriting (`rewrite`) is a V1 command but defaults to dry-run and only mutates files when an explicit write flag is given.
 - V1 is intentionally lightweight and does not aim to be a full artifact repository (no Maven/npm/Docker registry, no object storage, no web UI, no complex permission system).
 - Backend is implemented with a content-addressed approach keyed by SHA256; the Git LFS backend is the initial implementation only.
+- `init` resolves all configuration locally via an interactive wizard; mavenrepo-style cloud/remote configuration keyed by a bare namespace is deliberately deferred to V2 (see Future Stages).
 - Node.js and npm are available in the target environment.
+- The tool is implemented in TypeScript on Node.js (a technical constraint carried into the plan).
 - The tool is distributed as a public npm package (npmjs.org); release and versioning are managed through standard npm tooling.
