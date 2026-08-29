@@ -2,21 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { mkdtempSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FsProfileStore, ConfigError } from '../../src/config/store';
-import { ConfigResolver } from '../../src/config/resolve';
-import type { ConfigFile } from '../../src/config/store';
+import { FsProfileStore, ConfigError } from '@/config/store';
+import { ConfigResolver } from '@/config/resolve';
+import type { ConfigFile } from '@/config/store';
 
 interface Env {
   HOME?: string;
   BAZEL_GIT_LFS_HOME?: string;
 }
 
-function makeProfile(namespace: string, url: string): NonNullable<ConfigFile['profiles'][string]> {
+function makeProfile(alias: string, url: string): NonNullable<ConfigFile['profiles'][string]> {
   return {
-    namespace,
-    mirrorRepoUrl: url,
-    gitLabHost: new URL(url).host,
-    lfsEnabled: true,
+    alias,
+    url,
     createdAt: '2026-08-29T00:00:00.000Z',
     updatedAt: '2026-08-29T00:00:00.000Z',
   };
@@ -55,7 +53,7 @@ describe('ConfigResolver', () => {
     );
     const resolved = await resolver.resolve({ cwd, env });
     expect(resolved.scope).toBe('local');
-    expect(resolved.profile.mirrorRepoUrl).toBe('https://local.example.com/mirror.git');
+    expect(resolved.profile.url).toBe('https://local.example.com/mirror.git');
   });
 
   it('falls back to global when no local profile', async () => {
@@ -69,13 +67,13 @@ describe('ConfigResolver', () => {
     );
     const resolved = await resolver.resolve({ cwd, env });
     expect(resolved.scope).toBe('global');
-    expect(resolved.profile.mirrorRepoUrl).toBe('https://global.example.com/mirror.git');
+    expect(resolved.profile.url).toBe('https://global.example.com/mirror.git');
   });
 
-  it('uses explicit namespace override', async () => {
+  it('uses the active default profile', async () => {
     const { resolver, cwd, env } = await setupResolver(
       {
-        active: 'default',
+        active: 'team',
         profiles: {
           default: makeProfile('default', 'https://local.example.com/a.git'),
           team: makeProfile('team', 'https://local.example.com/b.git'),
@@ -84,9 +82,9 @@ describe('ConfigResolver', () => {
       },
       { active: null, profiles: {}, aliases: {} },
     );
-    const resolved = await resolver.resolve({ cwd, env, namespace: 'team' });
-    expect(resolved.namespace).toBe('team');
-    expect(resolved.profile.mirrorRepoUrl).toBe('https://local.example.com/b.git');
+    const resolved = await resolver.resolve({ cwd, env });
+    expect(resolved.alias).toBe('team');
+    expect(resolved.profile.url).toBe('https://local.example.com/b.git');
   });
 
   it('errors when no profile exists anywhere', async () => {
@@ -98,16 +96,15 @@ describe('ConfigResolver', () => {
     await expect(resolver.resolve({ cwd, env })).rejects.toThrow(/No mirror configured/);
   });
 
-  it('resolveEffective merges local over global per-field', async () => {
+  it('resolveEffective merges local over global', async () => {
     const local = makeProfile('default', 'https://local.example.com/mirror.git');
     const global = makeProfile('default', 'https://global.example.com/mirror.git');
     const { resolver, cwd, env } = await setupResolver(
-      { active: 'default', profiles: { default: { ...local, lfsEnabled: false } }, aliases: {} },
+      { active: 'default', profiles: { default: local }, aliases: {} },
       { active: 'default', profiles: { default: global }, aliases: {} },
     );
     const effective = await resolver.resolveEffective({ cwd, env });
     expect(effective.source).toBe('local');
-    expect(effective.values.mirrorRepoUrl.value).toBe('https://local.example.com/mirror.git');
-    expect(effective.values.lfsEnabled.value).toBe(false);
+    expect(effective.values.url.value).toBe('https://local.example.com/mirror.git');
   });
 });

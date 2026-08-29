@@ -1,4 +1,6 @@
 import { defineConfig } from 'vitest/config';
+import { fileURLToPath } from 'node:url';
+import pkg from './package.json';
 
 export default defineConfig({
   test: {
@@ -10,7 +12,12 @@ export default defineConfig({
       include: ['src/**/*.ts'],
     },
   },
+  define: {
+    __BGL_VERSION__: JSON.stringify(pkg.version),
+  },
   resolve: {
-    extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'],
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
   },
 });

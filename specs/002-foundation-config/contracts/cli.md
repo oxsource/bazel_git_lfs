@@ -34,16 +34,16 @@ Manages mirror-repository profiles. **Default scope is project-local** (`<cwd>/.
 ### remote add
 
 ```
-bazel-git-lfs remote add [--global] [--namespace <name>] [--mirror-repo <url>] [--gitlab-host <host>] [--lfs-enabled true|false] [--json]
+bazel-git-lfs remote add [--global] [--alias <name>] [--url <url>] [--json]
 ```
 
-Creates/updates a namespace-tagged mirror profile in the selected scope.
+Creates/updates a mirror profile in the selected scope.
 
-- **Interactive mode (default, TTY)**: If the required flags are absent and stdin is a TTY, run a guided wizard prompting for mirror repository URL, GitLab host, and Git LFS enabled flag. If the wizard is interrupted (Ctrl-C), nothing is written and the command exits non-zero.
-- **Non-interactive mode**: When any of `--mirror-repo`, `--gitlab-host`, or `--lfs-enabled` is provided (or stdin is not a TTY), no prompts are shown; missing required values are a usage error. `--namespace` defaults to `default`; scope defaults to project-local unless `--global` is given.
-- **Alias resolution**: if `--mirror-repo` starts with `@` (e.g., `@company-mirror`), the token is resolved through the **global alias table** and the resolved URL is stored. Unknown alias → error (exit `1`) naming the alias. URLs not starting with `@` are stored verbatim. Single-level resolution: an alias value that itself starts with `@` is rejected when the alias is defined.
-- **URL validation**: `--mirror-repo` is validated for format only (must parse as an HTTP(S) or SSH git URL). The remote is never contacted at config time (FR-014a); unreachability surfaces at the sync stage.
-- **Output**: confirmation of the saved profile namespace, scope, and config file location. With `--json`: `{ "ok": true, "namespace": "<name>", "scope": "local"|"global", "configPath": "<path>", "active": "<name>" }`.
+- **Interactive mode (default, TTY)**: If `--url` is absent and stdin is a TTY, run a guided wizard prompting for the mirror repository URL. If the wizard is interrupted (Ctrl-C), nothing is written and the command exits non-zero.
+- **Non-interactive mode**: When `--url` is provided (or stdin is not a TTY), no prompts are shown; a missing `--url` is a usage error. `--alias` defaults to `default`; scope defaults to project-local unless `--global` is given.
+- **Alias resolution**: if `--url` starts with `@` (e.g., `@company-mirror`), the token is resolved through the **global alias table** and the resolved URL is stored. Unknown alias → error (exit `1`) naming the alias. URLs not starting with `@` are stored verbatim. Single-level resolution: an alias value that itself starts with `@` is rejected when the alias is defined.
+- **URL validation**: `--url` is validated for format only (must parse as an HTTP(S) or SSH git URL). The remote is never contacted at config time (FR-014a); unreachability surfaces at the sync stage. Git LFS is always enabled (no toggle).
+- **Output**: confirmation of the saved profile alias, scope, and config file location. With `--json`: `{ "ok": true, "alias": "<name>", "scope": "local"|"global", "configPath": "<path>", "active": "<name>" }`.
 
 ### remote list
 
@@ -51,14 +51,14 @@ Creates/updates a namespace-tagged mirror profile in the selected scope.
 bazel-git-lfs remote list [--global] [--effective] [--json]
 ```
 
-Lists profiles in the selected scope (default: project-local). With no scope, shows both scopes labeled. **Output**: per-profile namespace, scope, and settings summary (URLs may be shown; no secrets exist).
+Lists profiles in the selected scope (default: project-local). With no scope, shows both scopes labeled. **Output**: per-profile alias, scope, and settings summary (URLs may be shown; no secrets exist).
 
-With `--effective`: shows the **merged, actually-in-effect profile** — scope layering (project-local wins over global) then `--namespace`/active selection — and notes the source scope of each resolved value (FR-014). This is the demonstrable view of `resolveConfig` for downstream consumers.
+With `--effective`: shows the **merged, actually-in-effect profile** — scope layering (project-local wins over global) then the `active` default — and notes the source scope of each resolved value (FR-014). This is the demonstrable view of `resolveConfig` for downstream consumers.
 
 ### remote remove
 
 ```
-bazel-git-lfs remote remove <namespace> [--global] [--json]
+bazel-git-lfs remote remove <alias> [--global] [--json]
 ```
 
 Removes the named profile from the selected scope. If it was the active default, the active marker falls back to another profile or `null`.
@@ -66,10 +66,10 @@ Removes the named profile from the selected scope. If it was the active default,
 ### remote set-default
 
 ```
-bazel-git-lfs remote set-default <namespace> [--global] [--json]
+bazel-git-lfs remote set-default <alias> [--global] [--json]
 ```
 
-Designates the named profile as the active default in the selected scope (FR-006).
+Designates the named profile as the active default in the selected scope (FR-006). There is no per-command profile-override flag; commands always use the active default (FR-007).
 
 ### remote alias
 
@@ -87,7 +87,7 @@ Manages the **global alias table** (`remote.alias.<name> = <url>`, stored in the
 
 **Behavior** (all subcommands):
 - Writes are atomic (temp file + rename).
-- Writing a profile with an existing namespace in the same scope updates it in place.
+- Writing a profile with an existing alias in the same scope updates it in place.
 - Project-local operations never modify the global config (SC-006).
 - No credentials are ever requested or stored (FR-010).
 
@@ -103,12 +103,12 @@ Registered for CLI-surface stability (so `--help` lists the full planned command
 
 Not a public subcommand in this stage; exposed as an internal library for later stages:
 
-- `resolveConfig({ scope?, namespace? })` → resolved `Profile`
-- Resolution order: **scope layering** (project-local wins over global) → explicit `--namespace` → `active` default in the winning scope → error (exit `1`) with message "No mirror configured. Run `bazel-git-lfs init` and `bazel-git-lfs remote add` first."
+- `resolveConfig({ scope? })` → resolved `Profile`
+- Resolution order: **scope layering** (project-local wins over global) → `active` default in the winning scope → error (exit `1`) with message "No mirror configured. Run `bazel-git-lfs init` and `bazel-git-lfs remote add` first."
 - Resolution never prompts and never writes (FR-008).
 
 ## Exit / error conventions
 
 - Errors to stderr; structured errors (with `--json`) on stdout as `{ "ok": false, "error": "<message>" }`.
 - Corrupted/unreadable config file → clear error naming the config path and suggesting re-running `init`.
-- `--namespace` that does not exist → clear error listing the known namespaces.
+- `remote set-default`/`remote remove` with an alias that does not exist → clear error listing the known aliases.

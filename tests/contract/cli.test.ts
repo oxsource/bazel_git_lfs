@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildProgram } from '../../src/cli/index';
+import { buildProgram } from '@/cli/index';
 
 interface Captured {
   code?: number;

@@ -33,4 +33,4 @@
 
 - All items pass. Specification is ready for the planning phase.
 - TypeScript/Node.js implementation is inherited from the parent guide (001-bazel-git-lfs-guide) and intentionally kept out of this spec to preserve the "no implementation details" quality bar for the stage spec.
-- Session 2026-08-29 clarifications (git-style scoped config; separate `remote` command; project-local default scope with `--global` opt-in; global `@alias` mirror URL table; format-only URL validation; `remote list --effective`) are integrated into user stories, FR-001/FR-004/FR-005a/FR-013*/FR-014*, SC-006/SC-007/SC-008, edge cases, and assumptions; no markers remain.
+- Session 2026-08-29 clarifications (git-style scoped config; separate `remote` command; project-local default scope with `--global` opt-in; global `@alias` mirror URL table; format-only URL validation; `remote list --effective`; simplified profile model `alias`+`url`, LFS always on; active profile via `remote set-default`, no per-command override flag) are integrated into user stories, FR-001/FR-004/FR-005a/FR-006/FR-007/FR-013*/FR-014*, SC-006/SC-007/SC-008, edge cases, and assumptions; no markers remain.

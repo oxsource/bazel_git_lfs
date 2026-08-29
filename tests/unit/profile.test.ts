@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { isValidNamespace, isValidGitUrl } from '../../src/config/profile';
+import { isValidAlias, isValidGitUrl, hostFromUrl } from '@/config/profile';
 
 describe('profile validation', () => {
-  it('accepts valid namespaces', () => {
-    expect(isValidNamespace('default')).toBe(true);
-    expect(isValidNamespace('ci-team')).toBe(true);
-    expect(isValidNamespace('dev_env.1')).toBe(true);
+  it('accepts valid aliases', () => {
+    expect(isValidAlias('default')).toBe(true);
+    expect(isValidAlias('ci-team')).toBe(true);
+    expect(isValidAlias('dev_env.1')).toBe(true);
   });
 
-  it('rejects invalid namespaces', () => {
-    expect(isValidNamespace('')).toBe(false);
-    expect(isValidNamespace('has space')).toBe(false);
-    expect(isValidNamespace('../evil')).toBe(false);
-    expect(isValidNamespace('a/b')).toBe(false);
+  it('rejects invalid aliases', () => {
+    expect(isValidAlias('')).toBe(false);
+    expect(isValidAlias('has space')).toBe(false);
+    expect(isValidAlias('../evil')).toBe(false);
+    expect(isValidAlias('a/b')).toBe(false);
   });
 
   it('accepts http(s) urls', () => {
@@ -29,5 +29,14 @@ describe('profile validation', () => {
     expect(isValidGitUrl('not-a-url')).toBe(false);
     expect(isValidGitUrl('ftp://example.com/x')).toBe(false);
     expect(isValidGitUrl('@alias')).toBe(false);
+  });
+
+  it('derives host from http(s) urls', () => {
+    expect(hostFromUrl('https://gitlab.example.com/bazel/mirror.git')).toBe('gitlab.example.com');
+    expect(hostFromUrl('http://gitlab.example.com/m.git')).toBe('gitlab.example.com');
+  });
+
+  it('derives host from ssh urls', () => {
+    expect(hostFromUrl('git@gitlab.example.com:bazel/mirror.git')).toBe('gitlab.example.com');
   });
 });

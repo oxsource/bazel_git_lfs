@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { FsAliasManager } from '../../src/config/alias';
-import { ConfigError } from '../../src/config/store';
-import type { ConfigFile } from '../../src/config/store';
+import { FsAliasManager } from '@/config/alias';
+import { ConfigError } from '@/config/store';
+import type { ConfigFile } from '@/config/store';
 
 const emptyConfig: ConfigFile = { active: null, profiles: {}, aliases: {} };
 

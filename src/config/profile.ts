@@ -1,16 +1,14 @@
 export interface Profile {
-  namespace: string;
-  mirrorRepoUrl: string;
-  gitLabHost: string;
-  lfsEnabled: boolean;
+  alias: string;
+  url: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export const NAMESPACE_PATTERN = /^[a-zA-Z0-9._-]+$/;
+export const ALIAS_PATTERN = /^[a-zA-Z0-9._-]+$/;
 
-export function isValidNamespace(namespace: string): boolean {
-  return NAMESPACE_PATTERN.test(namespace);
+export function isValidAlias(alias: string): boolean {
+  return ALIAS_PATTERN.test(alias);
 }
 
 export function isValidGitUrl(url: string): boolean {
@@ -23,6 +21,22 @@ export function isValidGitUrl(url: string): boolean {
   } catch {
     return isSshGitUrl(url);
   }
+}
+
+export function hostFromUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.hostname;
+    }
+  } catch {
+    // fall through to ssh parsing
+  }
+  const ssh = /^(?:[^@\s]+@)?([^:/]+):/.exec(url);
+  if (ssh) {
+    return ssh[1];
+  }
+  return '';
 }
 
 function isSshGitUrl(url: string): boolean {

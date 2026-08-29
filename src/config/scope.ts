@@ -1,4 +1,4 @@
-import { projectConfigFile, globalConfigFile } from './paths';
+import { projectConfigFile, globalConfigFile } from '@/config/paths';
 
 export type Scope = 'local' | 'global';
 

@@ -1,4 +1,4 @@
-import { ConfigFile, ConfigError } from './store';
+import { ConfigFile, ConfigError } from '@/config/store';
 
 const ALIAS_TOKEN = '@';
 

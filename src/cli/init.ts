@@ -1,8 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
-import { projectConfigDir, CONFIG_DIR_NAME } from '../config/paths';
-import { printResult, printError, EXIT_OK, EXIT_ERROR, OutputOptions } from './format';
+import { projectConfigDir, CONFIG_DIR_NAME } from '@/config/paths';
+import { printResult, printError, EXIT_OK, EXIT_ERROR, OutputOptions } from '@/cli/format';
 
 const GITIGNORE_ENTRY = '.bazel_git_lfs/';
 

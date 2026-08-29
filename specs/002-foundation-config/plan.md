@@ -8,7 +8,7 @@
 
 ## Summary
 
-Stand up the `bazel-git-lfs` TypeScript/Node.js CLI project and the configuration foundation every other command depends on. Modeled on **git**: an `init` command creates a non-versioned `.bazel_git_lfs/` config directory (like `git init`); a dedicated `remote` command manages mirror-repository profiles with **project-local scope by default** and **global scope via `--global`** (git-style layering, project-local wins); a **global alias table** (`remote.alias.<name> = <url>`) lets `remote add` reference mirrors by short `@token` instead of full URLs. Includes namespace-tagged profiles, active-default selection with `--namespace` override, deterministic non-interactive config resolution for downstream commands, and a non-interactive (flag-based) setup path for CI. Credentials are fully delegated to system git (never stored).
+Stand up the `bazel-git-lfs` TypeScript/Node.js CLI project and the configuration foundation every other command depends on. Modeled on **git**: an `init` command creates a non-versioned `.bazel_git_lfs/` config directory (like `git init`); a dedicated `remote` command manages mirror-repository profiles with **project-local scope by default** and **global scope via `--global`** (git-style layering, project-local wins); a **global alias table** (`remote.alias.<name> = <url>`) lets `remote add` reference mirrors by short `@token` instead of full URLs. Profiles are tagged by **alias** and store a single **url** (GitLab host derived from it; Git LFS always enabled). The active default is chosen via `remote set-default <alias>` (no per-command override flag); deterministic non-interactive config resolution for downstream commands; and a non-interactive (flag-based) setup path for CI. Credentials are fully delegated to system git (never stored).
 
 ## Technical Context
 
@@ -16,9 +16,9 @@ Stand up the `bazel-git-lfs` TypeScript/Node.js CLI project and the configuratio
 
 **Primary Dependencies**: Commander (CLI parsing); Node built-ins for fs/path/os; prompts for the interactive wizard (with a no-prompt fallback for non-interactive mode); `node:child_process` only where system `git` must be probed. No runtime storage framework.
 
-**Storage**: Filesystem config store in two scopes (git-style): **project-local** at `<project>/.bazel_git_lfs/config.json` (default scope) and **global** at `~/.bazel_git_lfs/config.json` (only when `--global` is given). Each file holds profiles keyed by namespace plus an active-default marker. Resolution: project-local wins over global.
+**Storage**: Filesystem config store in two scopes (git-style): **project-local** at `<project>/.bazel_git_lfs/config.json` (default scope) and **global** at `~/.bazel_git_lfs/config.json` (only when `--global` is given). Each file holds profiles keyed by alias plus an active-default marker. Resolution: project-local wins over global.
 
-**Testing**: Vitest for unit + integration; contract tests for the CLI `init`/`--help`/`--namespace` command schemas and the profile file format.
+**Testing**: Vitest for unit + integration; contract tests for the CLI `init`/`remote`/`--help` command schemas and the profile file format.
 
 **Target Platform**: macOS / Linux developer & CI machines (Node.js ≥ 22 with `git` + `git-lfs` installed, per parent guide).
 
@@ -28,7 +28,7 @@ Stand up the `bazel-git-lfs` TypeScript/Node.js CLI project and the configuratio
 
 **Constraints**: MUST NOT store or manage Git credentials (FR-010). MUST resolve config without interactive input at runtime (FR-008). MUST be configurable non-interactively for CI (FR-012). MUST apply project-local precedence over global (FR-005a). MUST default to project-local scope, using global only with `--global` (FR-004). MUST resolve `@alias` mirror URLs through the global alias table with single-level resolution (FR-013a/FR-013b). MUST validate mirror URL format only, never contacting the remote (FR-014a). MUST expose effective-config display via `remote list --effective` (FR-014). Must remain a config-only stage — no scanning/syncing/mirroring.
 
-**Scale/Scope**: Single-user local config; few profiles (tens at most); one profile per namespace per scope; no server-side config sync in this stage.
+**Scale/Scope**: Single-user local config; few profiles (tens at most); one profile per alias per scope; no server-side config sync in this stage.
 
 ## Constitution Check
 
@@ -69,9 +69,9 @@ src/
 │   └── format.ts          # shared output helpers (human + --json, errors to stderr)
 ├── config/
 │   ├── store.ts           # profile storage (fs-backed, behind an interface)
-│   ├── profile.ts         # profile model, namespace tagging, validation
+│   ├── profile.ts         # profile model, alias tagging, validation
 │   ├── alias.ts           # global alias table (remote.alias.*) + single-level @resolution
-│   ├── resolve.ts         # effective-config resolution (project-local > global; active default / --namespace)
+│   ├── resolve.ts         # effective-config resolution (project-local > global; active default)
 │   ├── scope.ts           # scope discovery: global (~/.bazel_git_lfs, requires --global) vs project-local (./.bazel_git_lfs, default)
 │   └── paths.ts           # path resolution helpers
 └── version.ts             # package version/help metadata
@@ -82,7 +82,7 @@ tests/
 └── contract/              # CLI command schemas + profile file format
 ```
 
-**Structure Decision**: Single project layout. The config layer (`config/`) is isolated behind the `ProfileStore` interface so G4 holds — the fs-backed store is the sole V1 implementation and can be swapped for cloud config in V2 without touching `cli/`. `scope.ts` implements git-style layering (project-local > global), and `resolve.ts` merges scopes before applying namespace/active selection. `cli/` orchestrates only. Other commands (scan/sync/…) exist as placeholder stubs registered in `index.ts` so `--help` lists the full command surface, matching the parent guide's contract.
+**Structure Decision**: Single project layout. The config layer (`config/`) is isolated behind the `ProfileStore` interface so G4 holds — the fs-backed store is the sole V1 implementation and can be swapped for cloud config in V2 without touching `cli/`. `scope.ts` implements git-style layering (project-local > global), and `resolve.ts` merges scopes before applying alias/active selection. `cli/` orchestrates only. Other commands (scan/sync/…) exist as placeholder stubs registered in `index.ts` so `--help` lists the full command surface, matching the parent guide's contract.
 
 ## Complexity Tracking
 

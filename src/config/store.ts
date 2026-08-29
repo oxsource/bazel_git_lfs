@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { Profile, isValidNamespace, isValidGitUrl } from './profile';
+import { Profile, isValidAlias, isValidGitUrl } from '@/config/profile';
 
 export interface ConfigFile {
   active: string | null;
@@ -67,8 +67,8 @@ function validateConfigFile(parsed: unknown, configPath: string): ConfigFile {
     if (typeof rawProfiles !== 'object' || rawProfiles === null || Array.isArray(rawProfiles)) {
       throw new ConfigError(`Config file at ${configPath} has invalid "profiles".`);
     }
-    for (const [namespace, value] of Object.entries(rawProfiles)) {
-      profiles[namespace] = validateProfile(namespace, value, configPath);
+    for (const [alias, value] of Object.entries(rawProfiles)) {
+      profiles[alias] = validateProfile(alias, value, configPath);
     }
   }
 
@@ -100,30 +100,25 @@ function validateConfigFile(parsed: unknown, configPath: string): ConfigFile {
   return { active, profiles, aliases };
 }
 
-function validateProfile(namespace: string, value: unknown, configPath: string): Profile {
+function validateProfile(alias: string, value: unknown, configPath: string): Profile {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new ConfigError(`Config file at ${configPath} has an invalid profile "${namespace}".`);
+    throw new ConfigError(`Config file at ${configPath} has an invalid profile "${alias}".`);
   }
 
-  if (!isValidNamespace(namespace)) {
+  if (!isValidAlias(alias)) {
     throw new ConfigError(
-      `Config file at ${configPath} has an invalid namespace "${namespace}" (allowed: letters, digits, . _ -).`,
+      `Config file at ${configPath} has an invalid alias "${alias}" (allowed: letters, digits, . _ -).`,
     );
   }
 
   const record = value as Record<string, unknown>;
-  if (typeof record.mirrorRepoUrl !== 'string' || !isValidGitUrl(record.mirrorRepoUrl)) {
-    throw new ConfigError(`Profile "${namespace}" in ${configPath} has an invalid mirrorRepoUrl.`);
-  }
-  if (typeof record.gitLabHost !== 'string' || record.gitLabHost.trim().length === 0) {
-    throw new ConfigError(`Profile "${namespace}" in ${configPath} has an invalid gitLabHost.`);
+  if (typeof record.url !== 'string' || !isValidGitUrl(record.url)) {
+    throw new ConfigError(`Profile "${alias}" in ${configPath} has an invalid url.`);
   }
 
   return {
-    namespace,
-    mirrorRepoUrl: record.mirrorRepoUrl,
-    gitLabHost: record.gitLabHost,
-    lfsEnabled: typeof record.lfsEnabled === 'boolean' ? record.lfsEnabled : true,
+    alias,
+    url: record.url,
     createdAt: typeof record.createdAt === 'string' ? record.createdAt : new Date().toISOString(),
     updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : new Date().toISOString(),
   };

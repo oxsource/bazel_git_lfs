@@ -20,6 +20,8 @@
 - Q: Should mirror URLs support global aliases? → A: yes — support a **global alias table** (`remote.alias.<name> = <url>`); when `remote add` is given a URL starting with `@`, resolve it through the global alias table before storing the profile
 - Q: Should `remote add` verify the mirror URL is reachable? → A: no — validate format only (HTTP(S)/SSH URL parsing), never contact the remote; connectivity is deferred to the sync stage
 - Q: Is an explicit way to view the effective config needed? → A: yes — `remote list` supports `--effective` to show the merged, actually-in-effect profile (per scope layering)
+- Q: Should the profile model be simplified? → A: yes — the profile identifier is renamed from "namespace" to **alias**; mirror config is a single **url** (GitLab host derived from it; no separate host field); Git LFS is always enabled (no `--lfs-enabled` toggle)
+- Q: How is the active profile selected? → A: no per-command override flag — the active default is chosen purely via `remote set-default <alias>`; commands always use the active default profile
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -42,25 +44,24 @@ A user runs `bazel-git-lfs init` inside a project. The tool creates a non-versio
 
 ### User Story 2 - Configure a mirror repository via `remote add` (Priority: P1)
 
-A user configures which mirror repository to use by running `bazel-git-lfs remote add`. In interactive mode it runs a guided wizard (mirror repository URL, GitLab host, Git LFS setting); in non-interactive mode (CI/scripts) the same values are passed as flags. The resulting profile is tagged by a namespace and stored in the selected scope (`--global` or `--local`).
+A user configures which mirror repository to use by running `bazel-git-lfs remote add`. In interactive mode it runs a guided wizard (mirror repository URL); in non-interactive mode (CI/scripts) the same value is passed via `--url`. The resulting profile is tagged by an alias and stored in the selected scope (`--global` or `--local`). Git LFS is always enabled.
 
 **Why this priority**: Mirror configuration is the data every later stage (scan, sync, verify, list, search, rewrite) consumes. Separating it from `init` (like `git remote`) lets the config area exist independently of any mirror choice.
 
-**Independent Test**: Run `remote add` (wizard and flag forms) and assert a namespace-tagged profile is saved in the selected scope with exactly the provided settings.
+**Independent Test**: Run `remote add` (wizard and flag forms) and assert an alias-tagged profile is saved in the selected scope with exactly the provided URL.
 
 **Acceptance Scenarios**:
 
-1. **Given** a project initialized with `init`, **When** a user runs `remote add` and follows the wizard, **Then** a project-local profile is saved containing the mirror repository URL, GitLab host, and Git LFS setting (no `--global` flag needed).
-2. **Given** a project initialized with `init`, **When** a user runs `remote add --mirror-repo <url> --gitlab-host <host>`, **Then** a project-local profile is saved without any prompts (non-interactive, default scope).
-3. **Given** a project initialized with `init`, **When** a user runs `remote add --global --mirror-repo <url> --gitlab-host <host>`, **Then** a global profile is saved in the user's home config area.
-4. **Given** an existing profile with the same namespace in the same scope, **When** `remote add` runs again, **Then** the existing profile is updated without error.
+1. **Given** a project initialized with `init`, **When** a user runs `remote add` and follows the wizard, **Then** a project-local profile is saved containing the mirror repository URL (no `--global` flag needed).
+2. **Given** a project initialized with `init`, **When** a user runs `remote add --url <url>`, **Then** a project-local profile is saved without any prompts (non-interactive, default scope).
+3. **Given** a project initialized with `init`, **When** a user runs `remote add --global --url <url>`, **Then** a global profile is saved in the user's home config area.
+4. **Given** an existing profile with the same alias in the same scope, **When** `remote add` runs again, **Then** the existing profile is updated without error.
 
 ---
 
 ### User Story 2a - Reference a mirror URL by global alias (Priority: P1)
 
 A user configures a mirror by an alias instead of a full URL. The global config holds an alias table (`remote.alias.<name> = <url>`). When `remote add` is given a mirror URL starting with `@` (e.g., `@company-mirror`), the tool resolves the alias from the global alias table to the real URL and stores the profile with the resolved URL.
-
 **Why this priority**: Aliases let teams share a canonical mirror location without pasting long URLs; the user can reference `@company-mirror` while the actual URL is managed in one global place. This matches the git-extension model (git supports URL insteadOf/alias-like mechanisms).
 
 **Independent Test**: Define a global alias `remote.alias.company-mirror = <url>`, run `remote add --mirror-repo @company-mirror`, and assert the saved profile stores the resolved URL (not the `@` token).
@@ -89,35 +90,35 @@ Modeled on git, mirror profiles live in two scopes: **global** (user home) and *
 
 ---
 
-### User Story 4 - Manage multiple mirror profiles by namespace (Priority: P2)
+### User Story 4 - Manage multiple mirror profiles by alias (Priority: P2)
 
-A user works with more than one mirror (different teams/environments). They can keep multiple namespace-tagged profiles, list them, remove them, designate one as the active default, and override the active default for a single command via `--namespace`.
+A user works with more than one mirror (different teams/environments). They can keep multiple alias-tagged profiles, list them, remove them, and designate one as the active default via `remote set-default <alias>`. Commands always use the active default profile; there is no per-command override flag.
 
 **Why this priority**: Multi-profile support is valuable for real teams but not required for the tool to work; a single default profile is enough to deliver value first.
 
-**Independent Test**: Create two profiles with different namespaces, set one active, run a command with `--namespace` pointing to the other, and assert the correct profile is used in each case.
+**Independent Test**: Create two profiles with different aliases, set one active with `remote set-default`, and assert a config-resolving command uses that active profile.
 
 **Acceptance Scenarios**:
 
-1. **Given** two profiles with different namespaces, **When** `remote list` runs, **Then** both are shown with their scope and settings.
+1. **Given** two profiles with different aliases, **When** `remote list` runs, **Then** both are shown with their scope and settings.
 2. **Given** one active default profile, **When** a command runs, **Then** it uses the active default profile.
-3. **Given** multiple profiles, **When** a command runs with `--namespace <name>`, **Then** it uses that profile instead of the default.
+3. **Given** multiple profiles, **When** `remote set-default <alias>` runs, **Then** the named profile becomes the active default.
 4. **Given** a profile no longer needed, **When** `remote remove <name>` runs, **Then** it is removed and the active default falls back to another profile (or none).
 
 ---
 
 ### User Story 5 - Let other commands read the resolved configuration (Priority: P2)
 
-Other tool commands reliably read the effective configuration (project-local before global; active default or `--namespace`) and obtain the mirror repository URL, GitLab host, and Git LFS settings. Resolution never requires interactive input at runtime.
+Other tool commands reliably read the effective configuration (project-local before global; the active default profile) and obtain the mirror repository URL. Resolution never requires interactive input at runtime.
 
 **Why this priority**: Later stages (discovery, sync, verify, etc.) all consume this configuration; a clean deterministic resolution path prevents rework.
 
-**Independent Test**: After configuring a profile, invoke a placeholder config-consuming flow and assert it returns exactly the saved settings for the effective profile.
+**Independent Test**: After configuring a profile, invoke a placeholder config-consuming flow and assert it returns exactly the saved URL for the effective profile.
 
 **Acceptance Scenarios**:
 
-1. **Given** an initialized profile, **When** a command resolves configuration, **Then** it receives the settings from the effective profile (project-local first, then global).
-2. **Given** no active default but a `--namespace`, **When** a command resolves configuration, **Then** it uses the namespace-tagged profile.
+1. **Given** an initialized profile, **When** a command resolves configuration, **Then** it receives the URL from the effective profile (project-local first, then global).
+2. **Given** the active default profile set via `remote set-default`, **When** a command resolves configuration, **Then** it uses that active default profile.
 3. **Given** no profile exists in any scope, **When** a command resolves configuration, **Then** it reports a clear error telling the user to configure a mirror first.
 
 ---
@@ -129,8 +130,8 @@ Other tool commands reliably read the effective configuration (project-local bef
 - What happens when the user's home configuration directory does not exist or is not writable?
 - What happens when the current project directory is not writable and `--local` is requested?
 - What happens when `init` runs in a directory that already has a `.bazel_git_lfs/` directory?
-- What happens when two profiles are saved with the same namespace in the same scope (overwrite vs. reject)?
-- What happens when `--namespace` refers to a namespace that does not exist?
+- What happens when two profiles are saved with the same alias in the same scope (overwrite vs. reject)?
+- What happens when `remote set-default` refers to an alias that does not exist?
 - What happens when `remote remove` is called on the active default profile?
 - How does a user configure a mirror in a non-interactive environment (CI/scripts) where a wizard cannot run?
 - What happens when a config file is corrupted or unreadable?
@@ -147,12 +148,12 @@ Other tool commands reliably read the effective configuration (project-local bef
 - **FR-001**: System MUST provide an `init` command that creates a non-versioned `.bazel_git_lfs/` config directory in the current project (git-init style), with no prompts and no mirror settings.
 - **FR-002**: System MUST ensure the config directory is excluded from version control (e.g., adds `.bazel_git_lfs/` to `.gitignore` when a git repository is detected).
 - **FR-003**: System MUST provide a `remote` command managing mirror repository profiles, including `add`, `list`, `remove`, and default-selection capabilities.
-- **FR-004**: `remote add` MUST save a namespace-tagged profile (mirror repository URL, GitLab host, Git LFS setting) in a selected scope — **project-local by default**, or **global** when the `--global` flag is given — via interactive wizard or non-interactive flags.
+- **FR-004**: `remote add` MUST save an alias-tagged profile (mirror repository URL) in a selected scope — **project-local by default**, or **global** when the `--global` flag is given — via interactive wizard or non-interactive `--url` flag. Git LFS is always enabled (no toggle).
 - **FR-005**: System MUST support two configuration scopes — **global** (user home) and **project-local** (current project) — storing profiles separately per scope.
 - **FR-005a**: System MUST treat project-local configuration as taking precedence over global configuration when resolving settings (git-style layering).
-- **FR-006**: System MUST designate one profile as the active default per scope, used by commands when no namespace is specified.
-- **FR-007**: System MUST support a `--namespace` flag on commands that overrides the active default profile for that invocation.
-- **FR-008**: System MUST resolve the effective configuration (project-local before global; active default or `--namespace` override) deterministically without interactive input at runtime.
+- **FR-006**: System MUST designate one profile as the active default per scope, used by commands, and MUST provide a `remote set-default <alias>` command to change it per scope.
+- **FR-007**: System MUST NOT require a per-command profile-override flag; commands always use the active default profile (selection is via `remote set-default`).
+- **FR-008**: System MUST resolve the effective configuration (project-local before global; the active default profile) deterministically without interactive input at runtime.
 - **FR-009**: System MUST report a clear, actionable error when a command runs with no configured profile in any scope.
 - **FR-010**: System MUST NOT store, manage, or persist any Git credentials; all mirror authentication relies on the system's existing git credential helpers / SSH keys.
 - **FR-011**: System MUST provide a `--help` output listing all available commands and basic usage.
@@ -160,16 +161,16 @@ Other tool commands reliably read the effective configuration (project-local bef
 - **FR-013**: System MUST support a global alias table (`remote.alias.<name> = <url>`) stored in the global config, and MUST provide a way to add/list/remove aliases.
 - **FR-013a**: When `remote add` is given a mirror URL starting with `@`, System MUST resolve the token through the global alias table; an unknown alias MUST fail with a clear error, and a URL not starting with `@` MUST be used verbatim (no alias lookup).
 - **FR-013b**: Alias resolution MUST be single-level (an alias's value is used as-is; chained `@` references are not resolved recursively) and MUST reject self/cyclic references.
-- **FR-014**: `remote list` MUST support an `--effective` mode that shows the merged, actually-in-effect profile (applying scope layering and namespace/active selection), giving downstream consumers a demonstrable view of resolved configuration.
+- **FR-014**: `remote list` MUST support an `--effective` mode that shows the merged, actually-in-effect profile (applying scope layering and the active default), giving downstream consumers a demonstrable view of resolved configuration.
 - **FR-014a**: `remote add` MUST validate mirror URL format (HTTP(S)/SSH parsing) but MUST NOT contact the remote; unreachability is only surfaced by the later sync stage.
 
 ### Key Entities
 
 - **Config Directory**: The non-versioned `.bazel_git_lfs/` directory created by `init`; holds the project-local config (and is created per-project like `.git/`).
-- **Profile**: A named set of configuration values (mirror repository URL, GitLab host, Git LFS setting) tagged by a namespace, stored in a configuration scope.
-- **Namespace**: A short user-provided label that uniquely identifies a profile within a scope; used for selection via `--namespace`.
+- **Profile**: A named set of configuration values (mirror repository URL) tagged by an alias, stored in a configuration scope.
+- **Alias**: A short user-provided label that uniquely identifies a profile within a scope; used as the profile key and by `remote set-default`. (Also used as the global mirror-URL alias table keys.)
 - **Scope**: The location where a profile is stored — **global** (user home) or **project-local** (current project). Project-local takes precedence.
-- **Active Default Profile**: The profile used when no namespace is specified; the resolved configuration for any command run.
+- **Active Default Profile**: The profile used when no alias is specified; the resolved configuration for any command run.
 - **Alias**: A global name→URL mapping (`remote.alias.<name> = <url>`) used to reference mirror URLs by short token (`@<name>`) instead of a full URL.
 
 ## Success Criteria *(mandatory)*
@@ -195,5 +196,5 @@ Other tool commands reliably read the effective configuration (project-local bef
 - The `.bazel_git_lfs/` config directory is never committed to version control.
 - The mirror repository is hosted on a self-hosted GitLab that supports Git LFS (from the parent guide).
 - Git and Git LFS are already installed and authenticated on the user's machine; the tool does not manage credentials.
-- Configuration profiles hold only non-secret connection settings; any secret access is delegated to the system git credential chain.
+- Configuration profiles hold only non-secret connection settings (a mirror URL); any secret access is delegated to the system git credential chain.
 - Stage 1 does not implement scanning, syncing, or mirroring; it provides the CLI skeleton, config area, and mirror-profile configuration foundation only.

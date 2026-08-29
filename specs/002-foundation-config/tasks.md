@@ -39,14 +39,14 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [x] T005 Create Profile type in src/config/profile.ts per data-model.md (namespace, mirrorRepoUrl, gitLabHost, lfsEnabled, createdAt, updatedAt; namespace validation regex `[a-zA-Z0-9._-]`)
+- [x] T005 Create Profile type in src/config/profile.ts per data-model.md (alias, url, createdAt, updatedAt; alias validation regex `[a-zA-Z0-9._-]`)
 - [x] T006 Implement path resolution in src/config/paths.ts (config dir discovery: project-local `<cwd>/.bazel_git_lfs`, global `~/.bazel_git_lfs` honoring `BAZEL_GIT_LFS_HOME`, via os.homedir()) per research decision 1
 - [x] T007 Implement scope discovery in src/config/scope.ts (project-local vs global scope resolution, default = project-local, `--global` opt-in) per research decision 1
 - [x] T008 Implement fs-backed ProfileStore in src/config/store.ts behind an interface (atomic write via temp file + rename; read with parse/schema validation; corrupted file → clear error naming the config path) per research decisions 2, 3
 - [x] T009 Implement URL format validation helper in src/config/profile.ts (must parse as HTTP(S) or SSH git URL; format only, no network) per research decision 9 (FR-014a)
 - [x] T010 Implement shared output helpers in src/cli/format.ts (human-readable + `--json` modes, errors to stderr, exit codes 0/1/2 per contracts/cli.md Global section)
 - [x] T011 Implement global alias table in src/config/alias.ts (add/list/remove; `remote.alias.<name> = <url>`; reject values starting with `@` for single-level resolution) per research decision 8 (FR-013b)
-- [x] T012 Implement config resolution in src/config/resolve.ts (`resolveConfig({ scope?, namespace? })` → effective Profile: scope layering project-local > global → explicit `--namespace` → active default → error "No mirror configured. Run `bazel-git-lfs init` and `bazel-git-lfs remote add` first.") per research decision 5 (FR-008)
+- [x] T012 Implement config resolution in src/config/resolve.ts (`resolveConfig({ scope? })` → effective Profile: scope layering project-local > global → active default → error "No mirror configured. Run `bazel-git-lfs init` and `bazel-git-lfs remote add` first.") per research decision 5 (FR-008)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -70,15 +70,15 @@
 
 ## Phase 4: User Story 2 - Configure a mirror repository via `remote add` (Priority: P1)
 
-**Goal**: `remote add` saves a namespace-tagged mirror profile in a selected scope (project-local default, `--global` opt-in), via interactive wizard or non-interactive flags (FR-004)
+**Goal**: `remote add` saves an alias-tagged mirror profile in a selected scope (project-local default, `--global` opt-in), via interactive wizard or non-interactive `--url` flag (FR-004)
 
-**Independent Test**: Run `remote add` (wizard and flag forms) and assert a namespace-tagged profile is saved in the selected scope with exactly the provided settings.
+**Independent Test**: Run `remote add` (wizard and flag forms) and assert an alias-tagged profile is saved in the selected scope with exactly the provided URL.
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] Implement `remote add` in src/cli/remote.ts (non-interactive flags `--global`, `--namespace`, `--mirror-repo`, `--gitlab-host`, `--lfs-enabled`; default namespace `default`; default scope project-local; missing required values in non-interactive mode → usage error exit 2)
-- [ ] T017 [US2] Implement interactive wizard in src/cli/remote.ts using `prompts` when stdin is a TTY and required flags are absent (prompt mirror URL, GitLab host, LFS enabled; Ctrl-C interruption → exit non-zero, nothing written) per research decision 4
-- [ ] T018 [US2] Integrate ProfileStore writes into `remote add` (save namespace-tagged profile; update-in-place on same namespace; first profile in a scope becomes active default; JSON output per contracts/cli.md)
+- [x] T016 [US2] Implement `remote add` in src/cli/remote.ts (non-interactive flags `--global`, `--alias`, `--url`; default alias `default`; default scope project-local; missing url in non-interactive mode → usage error exit 2)
+- [x] T017 [US2] Implement interactive wizard in src/cli/remote.ts using `prompts` when stdin is a TTY and required flags are absent (prompt mirror URL, GitLab host, LFS enabled; Ctrl-C interruption → exit non-zero, nothing written) per research decision 4
+- [x] T018 [US2] Integrate ProfileStore writes into `remote add` (save alias-tagged profile; update-in-place on same alias; first profile in a scope becomes active default; JSON output per contracts/cli.md)
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -86,14 +86,14 @@
 
 ## Phase 5: User Story 2a - Reference a mirror URL by global alias (Priority: P1)
 
-**Goal**: `remote add --mirror-repo @<name>` resolves through the global alias table and stores the resolved URL (FR-013, FR-013a)
+**Goal**: `remote add --url @<name>` resolves through the global alias table and stores the resolved URL (FR-013, FR-013a)
 
-**Independent Test**: Define a global alias `remote.alias.company-mirror = <url>`, run `remote add --mirror-repo @company-mirror`, and assert the saved profile stores the resolved URL (not the `@` token).
+**Independent Test**: Define a global alias `remote.alias.company-mirror = <url>`, run `remote add --url @company-mirror`, and assert the saved profile stores the resolved URL (not the `@` token).
 
 ### Implementation for User Story 2a
 
-- [ ] T019 [P] [US2a] Implement `remote alias add` / `list` / `remove` in src/cli/remote.ts (alias add rejects values starting with `@`; stored in global config only per research decision 8)
-- [ ] T020 [US2a] Implement `@` alias resolution in `remote add` (URL starting with `@` → resolve via global alias table; unknown alias → error exit 1 naming the alias; non-`@` URLs used verbatim) per FR-013a
+- [x] T019 [P] [US2a] Implement `remote alias add` / `list` / `remove` in src/cli/remote.ts (alias add rejects values starting with `@`; stored in global config only per research decision 8)
+- [x] T020 [US2a] Implement `@` alias resolution in `remote add` (URL starting with `@` → resolve via global alias table; unknown alias → error exit 1 naming the alias; non-`@` URLs used verbatim) per FR-013a
 
 **Checkpoint**: At this point, User Stories 1, 2 AND 2a should all work independently
 
@@ -107,24 +107,24 @@
 
 ### Implementation for User Story 3
 
-- [ ] T021 [US3] Implement scope-aware writes in `remote add` (write to selected scope only; project-local operations never modify the global config) per SC-006
-- [ ] T022 [US3] Wire `resolveConfig` scope layering into `remote list` (show per-scope profiles, both scopes labeled when no scope given) per contracts/cli.md
+- [x] T021 [US3] Implement scope-aware writes in `remote add` (write to selected scope only; project-local operations never modify the global config) per SC-006
+- [x] T022 [US3] Wire `resolveConfig` scope layering into `remote list` (show per-scope profiles, both scopes labeled when no scope given) per contracts/cli.md
 
 **Checkpoint**: At this point, User Stories 1, 2, 2a AND 3 should all work independently
 
 ---
 
-## Phase 7: User Story 4 - Manage multiple mirror profiles by namespace (Priority: P2)
+## Phase 7: User Story 4 - Manage multiple mirror profiles by alias (Priority: P2)
 
-**Goal**: `remote list`/`remove`/`set-default` manage multiple namespace-tagged profiles with active-default per scope and `--namespace` override (FR-006, FR-007)
+**Goal**: `remote list`/`remove`/`set-default` manage multiple alias-tagged profiles with active-default per scope (FR-006, FR-007)
 
-**Independent Test**: Create two profiles with different namespaces, set one active, run a command with `--namespace` pointing to the other, and assert the correct profile is used in each case.
+**Independent Test**: Create two profiles with different aliases, set one active with `remote set-default`, and assert a config-resolving command uses that active profile.
 
 ### Implementation for User Story 4
 
-- [ ] T023 [US4] Implement `remote set-default <namespace> [--global]` in src/cli/remote.ts (designates active default per scope; error listing known namespaces if namespace missing)
-- [ ] T024 [US4] Implement `remote remove <namespace> [--global]` in src/cli/remote.ts (removes profile; active marker falls back to another profile or null)
-- [ ] T025 [US4] Implement `--namespace` override in `resolveConfig` resolution path (explicit `--namespace` → active default) per FR-007
+- [x] T023 [US4] Implement `remote set-default <alias> [--global]` in src/cli/remote.ts (designates active default per scope; error listing known aliases if alias missing)
+- [x] T024 [US4] Implement `remote remove <alias> [--global]` in src/cli/remote.ts (removes profile; active marker falls back to another profile or null)
+- [x] T025 [US4] Verify `resolveConfig` uses only the active default (no per-command override flag) per FR-007
 
 **Checkpoint**: At this point, User Stories 1-4 should all work independently
 
@@ -138,8 +138,8 @@
 
 ### Implementation for User Story 5
 
-- [ ] T026 [US5] Implement `remote list --effective` in src/cli/remote.ts (merged effective profile: scope layering → namespace/active selection; annotate source scope of each resolved value) per research decision 10 (FR-014)
-- [ ] T027 [US5] Implement no-profile error path in `resolveConfig` (exit 1 with "No mirror configured. Run `bazel-git-lfs init` and `bazel-git-lfs remote add` first.") per FR-009
+- [x] T026 [US5] Implement `remote list --effective` in src/cli/remote.ts (merged effective profile: scope layering → active default; annotate source scope of each resolved value) per research decision 10 (FR-014)
+- [x] T027 [US5] Implement no-profile error path in `resolveConfig` (exit 1 with "No mirror configured. Run `bazel-git-lfs init` and `bazel-git-lfs remote add` first.") per FR-009
 
 **Checkpoint**: At this point, all user stories should be independently functional
 
@@ -149,11 +149,11 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T028 [P] Implement corrupted/unreadable config file error handling (clear error naming config path, suggest re-running `init`) in src/config/store.ts per contracts/cli.md error conventions
-- [ ] T029 [P] Implement unwritable config directory error handling (home dir not writable / project dir not writable for `--local`) in src/cli/
-- [ ] T030 Validate quickstart.md steps (init, remote add wizard/flags, alias, list --effective, set-default, remove) against the implemented CLI
-- [ ] T031 Run lint, build, and typecheck across the project; fix any issues
-- [ ] T032 Verify `bazel-git-lfs --help` lists all commands (init, remote, scan, sync, verify, list, search, rewrite) and exit codes follow the contract
+- [x] T028 [P] Implement corrupted/unreadable config file error handling (clear error naming config path, suggest re-running `init`) in src/config/store.ts per contracts/cli.md error conventions
+- [x] T029 [P] Implement unwritable config directory error handling (home dir not writable / project dir not writable for `--local`) in src/cli/
+- [x] T030 Validate quickstart.md steps (init, remote add wizard/flags, alias, list --effective, set-default, remove) against the implemented CLI
+- [x] T031 Run lint, build, and typecheck across the project; fix any issues
+- [x] T032 Verify `bazel-git-lfs --help` lists all commands (init, remote, scan, sync, verify, list, search, rewrite) and exit codes follow the contract
 
 ---
 
@@ -175,7 +175,7 @@
 - **User Story 2a (P1)**: Depends on US2 (`remote add`) and the alias table (T011, T019); independently testable once `remote add` exists
 - **User Story 3 (P1)**: Depends on US2 (scope-aware writes) and resolveConfig (T012); independently testable
 - **User Story 4 (P2)**: Depends on US2/US3 (profiles exist per scope); independently testable
-- **User Story 5 (P2)**: Depends on resolveConfig (T012) and US3/US4 (scope + namespace resolution); independently testable
+- **User Story 5 (P2)**: Depends on resolveConfig (T012) and US3/US4 (scope + active-default resolution); independently testable
 
 ### Within Each User Story
 

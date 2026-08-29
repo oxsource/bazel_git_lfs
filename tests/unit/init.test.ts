@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mkdtempSync, mkdirSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runInit } from '../../src/cli/init';
+import { runInit } from '@/cli/init';
 
 function tempProject(): string {
   const root = mkdtempSync(join(tmpdir(), 'bazel-git-lfs-init-'));

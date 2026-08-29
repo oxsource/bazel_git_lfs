@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FsProfileStore, ConfigError } from '../../src/config/store';
+import { FsProfileStore, ConfigError } from '@/config/store';
 
 function tempDir(): string {
   const dir = mkdtempSync(join(tmpdir(), 'bazel-git-lfs-test-'));
@@ -24,10 +24,8 @@ describe('FsProfileStore', () => {
       active: 'default',
       profiles: {
         default: {
-          namespace: 'default',
-          mirrorRepoUrl: 'https://gitlab.example.com/bazel/mirror.git',
-          gitLabHost: 'gitlab.example.com',
-          lfsEnabled: true,
+          alias: 'default',
+          url: 'https://gitlab.example.com/bazel/mirror.git',
           createdAt: '2026-08-29T00:00:00.000Z',
           updatedAt: '2026-08-29T00:00:00.000Z',
         },
@@ -51,7 +49,7 @@ describe('FsProfileStore', () => {
   it('throws a clear error on invalid profile structure', async () => {
     const dir = tempDir();
     const path = join(dir, 'config.json');
-    writeFileSync(path, JSON.stringify({ profiles: { default: { mirrorRepoUrl: 'bad' } } }));
+    writeFileSync(path, JSON.stringify({ profiles: { default: { url: 'bad' } } }));
     const store = new FsProfileStore();
     await expect(store.readConfig(path)).rejects.toThrow(ConfigError);
   });

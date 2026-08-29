@@ -12,15 +12,15 @@ Phase 0 research decisions resolving the technical unknowns for Stage 1 (Foundat
 
 ## 2. Profile storage format
 
-**Decision**: A single `config.json` under the config directory holding `{ active, profiles: { <namespace>: { mirrorRepoUrl, gitLabHost, lfsEnabled, ... } } }`. Written atomically (write temp file + rename).
+**Decision**: A single `config.json` under the config directory holding `{ active, profiles: { <alias>: { url, ... } }, aliases: { <name>: <url> } }`. Written atomically (write temp file + rename).
 
-**Rationale**: One file is simpler to reason about and validate than one file per namespace; atomic write prevents the corruption edge case (spec Edge Cases). `active` names the default profile.
+**Rationale**: One file is simpler to reason about and validate than one file per alias; atomic write prevents the corruption edge case (spec Edge Cases). `active` names the default profile.
 
-**Alternatives considered:** One file per namespace + index file — more filesystem churn, no benefit at this scale; JSONC/TOML — JSON is standard, no parser dependency.
+**Alternatives considered:** One file per alias + index file — more filesystem churn, no benefit at this scale; JSONC/TOML — JSON is standard, no parser dependency.
 
 ## 3. Profile file validation & corruption handling
 
-**Decision**: Validate schema on every read (required fields present, URL format check, namespace non-empty). On parse/schema failure, report a clear error naming the config path and instruct re-running `init` (spec FR-007 / Edge Cases: corrupted config).
+**Decision**: Validate schema on every read (required fields present, URL format check, alias non-empty). On parse/schema failure, report a clear error naming the config path and instruct re-running `init` (spec FR-009 / Edge Cases: corrupted config).
 
 **Rationale**: FR-007 requires actionable errors; deterministic resolution (FR-006) demands validation at read time, not lazily.
 
@@ -28,7 +28,7 @@ Phase 0 research decisions resolving the technical unknowns for Stage 1 (Foundat
 
 ## 4. Interactive wizard vs non-interactive mode
 
-**Decision**: Use the `prompts` library for interactive mode when stdin is a TTY; when `--namespace <n> --mirror-repo <url> --gitlab-host <host> [--lfs-enabled true|false]` flags are provided (or stdin is not a TTY), run non-interactively without prompting. Default namespace `default`, default scope `local`. Applies to the `remote add` subcommand (mirror configuration), not to `init` (which never prompts).
+**Decision**: Use the `prompts` library for interactive mode when stdin is a TTY; when `--url` is provided (or stdin is not a TTY), run non-interactively without prompting. Default alias `default`, default scope `local`. Applies to the `remote add` subcommand (mirror configuration), not to `init` (which never prompts).
 
 **Rationale**: FR-001/FR-012 (wizard and non-interactive) are both required on `remote add`; a TTY check + explicit flags gives deterministic behavior in both paths. `init` is deliberately prompt-free (FR-001).
 
@@ -36,11 +36,11 @@ Phase 0 research decisions resolving the technical unknowns for Stage 1 (Foundat
 
 ## 5. Effective-config resolution order
 
-**Decision**: Resolution order: scope layering first (project-local wins over global), then explicit `--namespace` flag → `active` default → error with "run `init` first" if no profiles exist in any scope. Runtime resolution is pure file read + validation, no prompts.
+**Decision**: Resolution order: scope layering first (project-local wins over global), then the `active` default in the winning scope → error with "No mirror configured. Run `bazel-git-lfs init` and `bazel-git-lfs remote add` first." if no profiles exist in any scope. Runtime resolution is pure file read + validation, no prompts. There is no per-command profile-override flag; the active default is chosen via `remote set-default <alias>` (FR-006/FR-007).
 
-**Rationale**: Matches FR-003a/FR-004/FR-005/FR-006/FR-007 exactly, keeps resolution deterministic for later stages, and mirrors git's layered config semantics.
+**Rationale**: Matches FR-005a/FR-006/FR-007/FR-008/FR-009 exactly, keeps resolution deterministic for later stages, and mirrors git's layered config semantics.
 
-**Alternatives considered:** Auto-creating a profile at first use — masks missing-init errors; rejected (FR-009 wants an explicit error). Global-only resolution — ignores project-local precedence.
+**Alternatives considered:** Auto-creating a profile at first use — masks missing-init errors; rejected (FR-009 wants an explicit error). Global-only resolution — ignores project-local precedence. Per-command override flag — rejected per clarification; `remote set-default` is the single selection mechanism.
 
 ## 6. Credential handling
 
@@ -76,7 +76,7 @@ Phase 0 research decisions resolving the technical unknowns for Stage 1 (Foundat
 
 ## 10. Effective-config display
 
-**Decision**: `remote list --effective` computes and shows the merged, actually-in-effect profile: apply scope layering (project-local wins over global), then `--namespace`/active selection, and annotate each value's source scope. Shares the same internal `resolveConfig` used by later stages.
+**Decision**: `remote list --effective` computes and shows the merged, actually-in-effect profile: apply scope layering (project-local wins over global), then the `active` default, and annotate each value's source scope. Shares the same internal `resolveConfig` used by later stages.
 
 **Rationale**: FR-014 / US5. It gives a demonstrable, user-visible path for config resolution in this stage (and a natural place to test `resolveConfig` end-to-end), without adding a separate command surface.
 
@@ -84,7 +84,7 @@ Phase 0 research decisions resolving the technical unknowns for Stage 1 (Foundat
 
 ## 8. Testing strategy
 
-**Decision**: Vitest. Unit tests for `paths`/`profile`/`store`/`resolve`; integration tests run `init` end-to-end with `BAZEL_GIT_LFS_HOME` pointed at a temp dir (covers wizard non-interactive path + active/namespace resolution); contract tests assert `--help`/`init` schemas and the `config.json` file format.
+**Decision**: Vitest. Unit tests for `paths`/`profile`/`store`/`resolve`; integration tests run `init`/`remote add` end-to-end with `BAZEL_GIT_LFS_HOME` pointed at a temp dir (covers wizard non-interactive path + active-default resolution); contract tests assert `--help`/`init`/`remote` schemas and the `config.json` file format.
 
 **Rationale**: Hermetic via env override (research 1); contract tests pin the CLI interface per the parent guide's contract approach.
 

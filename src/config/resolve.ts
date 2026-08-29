@@ -1,117 +1,104 @@
-import { ConfigError, ProfileStore, ConfigFile } from './store';
-import { projectConfigFile, globalConfigFile } from './paths';
+import { ConfigError, ProfileStore, ConfigFile } from '@/config/store';
 
 export interface ResolveOptions {
-  namespace?: string;
   cwd: string;
   env?: NodeJS.ProcessEnv;
 }
 
 export interface ResolvedProfile {
   profile: NonNullable<ConfigFile['profiles'][string]>;
-  namespace: string;
+  alias: string;
   scope: 'local' | 'global';
 }
 
 export interface EffectiveResolution {
   profile: NonNullable<ConfigFile['profiles'][string]>;
-  namespace: string;
+  alias: string;
   source: 'local' | 'global';
-  values: Record<
-    'mirrorRepoUrl' | 'gitLabHost' | 'lfsEnabled',
-    { value: unknown; source: 'local' | 'global' }
-  >;
+  values: { url: { value: string; source: 'local' | 'global' } };
 }
 
 export class ConfigResolver {
   constructor(private readonly store: ProfileStore) {}
 
   async resolve(opts: ResolveOptions): Promise<ResolvedProfile> {
-    const { namespace, cwd, env = process.env } = opts;
+    const { cwd, env = process.env } = opts;
+    const { projectConfigFile, globalConfigFile } = await import('@/config/paths');
 
     const localConfig = await this.store.readConfig(projectConfigFile(cwd));
     const globalConfig = await this.store.readConfig(globalConfigFile(env));
 
-    return this.pick(localConfig, globalConfig, namespace);
+    return this.pick(localConfig, globalConfig);
   }
 
   async resolveEffective(opts: ResolveOptions): Promise<EffectiveResolution> {
-    const { namespace, cwd, env = process.env } = opts;
+    const { cwd, env = process.env } = opts;
+    const { projectConfigFile, globalConfigFile } = await import('@/config/paths');
 
     const localConfig = await this.store.readConfig(projectConfigFile(cwd));
     const globalConfig = await this.store.readConfig(globalConfigFile(env));
 
-    const candidateNamespace = namespace ?? localConfig.active ?? globalConfig.active;
-    if (candidateNamespace === null) {
+    const candidateAlias = localConfig.active ?? globalConfig.active;
+    if (candidateAlias === null) {
       throw new ConfigError(
         'No mirror configured. Run "bazel-git-lfs init" and "bazel-git-lfs remote add" first.',
       );
     }
 
-    const localProfile = localConfig.profiles[candidateNamespace];
-    const globalProfile = globalConfig.profiles[candidateNamespace];
+    const localProfile = localConfig.profiles[candidateAlias];
+    const globalProfile = globalConfig.profiles[candidateAlias];
 
     if (!localProfile && !globalProfile) {
       throw new ConfigError(
-        `Namespace "${candidateNamespace}" does not exist. Known namespaces: ${
-          this.knownNamespaces(localConfig, globalConfig).join(', ') || 'none'
+        `Alias "${candidateAlias}" does not exist. Known aliases: ${
+          this.knownAliases(localConfig, globalConfig).join(', ') || 'none'
         }.`,
       );
     }
 
-    const merged = {
-      mirrorRepoUrl: localProfile?.mirrorRepoUrl ?? globalProfile?.mirrorRepoUrl ?? '',
-      gitLabHost: localProfile?.gitLabHost ?? globalProfile?.gitLabHost ?? '',
-      lfsEnabled: localProfile?.lfsEnabled ?? globalProfile?.lfsEnabled ?? true,
-    };
+    const url = localProfile?.url ?? globalProfile?.url ?? '';
 
     return {
       profile: {
-        namespace: candidateNamespace,
-        ...merged,
+        alias: candidateAlias,
+        url,
         createdAt: localProfile?.createdAt ?? globalProfile?.createdAt ?? new Date().toISOString(),
         updatedAt: localProfile?.updatedAt ?? globalProfile?.updatedAt ?? new Date().toISOString(),
       },
-      namespace: candidateNamespace,
+      alias: candidateAlias,
       source: localProfile ? 'local' : 'global',
       values: {
-        mirrorRepoUrl: { value: merged.mirrorRepoUrl, source: localProfile ? 'local' : 'global' },
-        gitLabHost: { value: merged.gitLabHost, source: localProfile ? 'local' : 'global' },
-        lfsEnabled: { value: merged.lfsEnabled, source: localProfile ? 'local' : 'global' },
+        url: { value: url, source: localProfile ? 'local' : 'global' },
       },
     };
   }
 
-  private pick(
-    localConfig: ConfigFile,
-    globalConfig: ConfigFile,
-    namespace: string | undefined,
-  ): ResolvedProfile {
-    const candidateNamespace = namespace ?? localConfig.active ?? globalConfig.active;
-    if (candidateNamespace === null) {
+  private pick(localConfig: ConfigFile, globalConfig: ConfigFile): ResolvedProfile {
+    const candidateAlias = localConfig.active ?? globalConfig.active;
+    if (candidateAlias === null) {
       throw new ConfigError(
         'No mirror configured. Run "bazel-git-lfs init" and "bazel-git-lfs remote add" first.',
       );
     }
 
-    const localProfile = localConfig.profiles[candidateNamespace];
+    const localProfile = localConfig.profiles[candidateAlias];
     if (localProfile) {
-      return { profile: localProfile, namespace: candidateNamespace, scope: 'local' };
+      return { profile: localProfile, alias: candidateAlias, scope: 'local' };
     }
 
-    const globalProfile = globalConfig.profiles[candidateNamespace];
+    const globalProfile = globalConfig.profiles[candidateAlias];
     if (globalProfile) {
-      return { profile: globalProfile, namespace: candidateNamespace, scope: 'global' };
+      return { profile: globalProfile, alias: candidateAlias, scope: 'global' };
     }
 
     throw new ConfigError(
-      `Namespace "${candidateNamespace}" does not exist. Known namespaces: ${
-        this.knownNamespaces(localConfig, globalConfig).join(', ') || 'none'
+      `Alias "${candidateAlias}" does not exist. Known aliases: ${
+        this.knownAliases(localConfig, globalConfig).join(', ') || 'none'
       }.`,
     );
   }
 
-  private knownNamespaces(localConfig: ConfigFile, globalConfig: ConfigFile): string[] {
+  private knownAliases(localConfig: ConfigFile, globalConfig: ConfigFile): string[] {
     const set = new Set<string>([
       ...Object.keys(localConfig.profiles),
       ...Object.keys(globalConfig.profiles),
