@@ -61,23 +61,9 @@ function tempProject(): string {
 describe('CLI command surface', () => {
   it('--help lists all commands', async () => {
     const { stdout } = await runCli(['node', 'bazel-git-lfs', '--help']);
-    for (const cmd of ['init', 'inspect', 'fetch', 'pull', 'push', 'status', 'clean', 'checkout', 'rewrite']) {
+    for (const cmd of ['init', 'inspect', 'fetch', 'pull', 'push', 'status', 'clean', 'checkout']) {
       expect(stdout).toContain(cmd);
     }
-  });
-
-  it('stub commands exit non-zero', async () => {
-    for (const cmd of ['rewrite']) {
-      const { code, stderr } = await runCli(['node', 'bazel-git-lfs', cmd]);
-      expect(code).toBe(1);
-      expect(stderr).toContain('not implemented');
-    }
-  });
-
-  it('stub commands emit JSON error with --json', async () => {
-    const { stdout } = await runCli(['node', 'bazel-git-lfs', 'rewrite', '--json']);
-    const parsed = JSON.parse(stdout);
-    expect(parsed).toEqual({ ok: false, error: expect.stringContaining('not implemented') });
   });
 
   it('removed sync stub reports an unknown-command usage error (exit 2)', async () => {

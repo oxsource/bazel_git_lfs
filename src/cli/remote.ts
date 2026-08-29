@@ -2,7 +2,7 @@ import { FsProfileStore, ConfigError, ConfigFile } from '@/config/store';
 import { FsAliasManager } from '@/config/alias';
 import { resolveScope, Scope } from '@/config/scope';
 import { isValidGitUrl, isValidAlias } from '@/config/profile';
-import { assertNotReserved } from '@/mirror/alias';
+import { assertNotReserved, RESERVED_ALIASES } from '@/mirror/alias';
 import {
   printResult,
   printError,
@@ -60,7 +60,7 @@ export interface RemoteAliasListOptions extends OutputOptions {
   env?: NodeJS.ProcessEnv;
 }
 
-const DEFAULT_ALIAS = 'default';
+const DEFAULT_ALIAS = RESERVED_ALIASES.DEFAULT;
 
 async function readConfigSafe(
   store: FsProfileStore,

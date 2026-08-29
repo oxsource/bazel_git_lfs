@@ -41,7 +41,7 @@ export async function removeCheckoutState(projectDir: string): Promise<void> {
 
 export function isNonDefaultCheckout(alias: string): boolean {
   const resolved = resolveAlias(alias);
-  return resolved !== 'default';
+  return resolved !== RESERVED_ALIASES.DEFAULT;
 }
 
 export interface CheckoutChange {

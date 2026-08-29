@@ -467,7 +467,7 @@ bazel-git-lfs search abseil
 
 ---
 
-## 14. Bazel URL Rewrite
+## 14. Bazel URL Checkout
 
 第一阶段不强制修改原 Bazel 项目。
 
@@ -480,7 +480,7 @@ bazel-git-lfs search abseil
 后续可以增加：
 
 ```bash
-bazel-git-lfs rewrite ./graph_runtime
+bazel-git-lfs checkout production
 ```
 
 将：
@@ -502,7 +502,7 @@ sync
 与：
 
 ```text
-rewrite
+checkout
 ```
 
 作为两个独立能力。

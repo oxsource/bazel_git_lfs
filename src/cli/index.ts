@@ -21,7 +21,7 @@ import { printUsageError, OutputOptions } from '@/cli/format';
 
 const VERSION: string = __BGL_VERSION__;
 
-const STUB_COMMANDS = ['rewrite'] as const;
+const STUB_COMMANDS: readonly string[] = [];
 
 export interface CliDeps {
   cwd?: string;

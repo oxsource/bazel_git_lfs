@@ -45,7 +45,7 @@ description: "Task list for Stage 4 — Status / Clean feature implementation"
 
 - [X] T002 [P] Register `status` command in `src/cli/index.ts` (Command with `--sha256-prefix`, `--source-url` flags and optional keyword argument, `allowExcessArguments(false)`, JSON-only output)
 - [X] T003 [P] Register `clean` command in `src/cli/index.ts` (Command with `allowExcessArguments(false)`, JSON-only output)
-- [X] T004 Remove `verify`, `list`, `search` from `STUB_COMMANDS` array in `src/cli/index.ts` (keep `rewrite`), replace their help text check with `status` and `clean` in `tests/contract/cli.test.ts`
+- [X] T004 Remove `verify`, `list`, `search` from `STUB_COMMANDS` array in `src/cli/index.ts`, replace their help text check with `status` and `clean` in `tests/contract/cli.test.ts`
 
 **Checkpoint**: Foundation ready — `status` and `clean` are registered in CLI, contract tests pass
 

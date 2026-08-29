@@ -113,7 +113,7 @@ specs/<###-feature>/                   # 每个 feature 的规格目录
 | S2 | Discovery (`scan`) | [tasks.md T002](./../specs/001-bazel-git-lfs-guide/tasks.md) (待创建) |
 | S3 | Mirroring Core (`sync`) | [tasks.md T003](./../specs/001-bazel-git-lfs-guide/tasks.md) (待创建) |
 | S4 | Mirror Consumption (`verify`/`list`/`search`) | [tasks.md T004](./../specs/001-bazel-git-lfs-guide/tasks.md) (待创建) |
-| S5 | Business Project Rewrite (`rewrite`) | [tasks.md T005](./../specs/001-bazel-git-lfs-guide/tasks.md) (待创建) |
+| S5 | Business Project Checkout (`checkout`) | [tasks.md T005](./../specs/001-bazel-git-lfs-guide/tasks.md) (待创建) |
 | S6 | Packaging & Release | [tasks.md T006](./../specs/001-bazel-git-lfs-guide/tasks.md) (待创建) |
 
 详细说明见 `specs/001-bazel-git-lfs-guide/plan.md` 与 `tasks.md`。

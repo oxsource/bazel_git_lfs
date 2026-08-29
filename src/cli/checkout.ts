@@ -1,7 +1,7 @@
 import { checkInitialized, resolveDefaultRemote } from '@/cli/common';
 import { printResult, EXIT_OK, EXIT_ERROR } from '@/cli/format';
 import { runCheckoutScan, writeCheckoutState, removeCheckoutState, isNonDefaultCheckout } from '@/mirror/checkout';
-import { resolveAlias } from '@/mirror/alias';
+import { resolveAlias, RESERVED_ALIASES } from '@/mirror/alias';
 import { GitLfsRepository } from '@/mirror/repository';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -45,10 +45,10 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
     manifest,
     resolveTarget: async (a: string) => {
       const resolved = resolveAlias(a);
-      if (resolved === 'default') {
+      if (resolved === RESERVED_ALIASES.DEFAULT) {
         return { type: 'original', baseUrl: '' };
       }
-      if (resolved === 'local') {
+      if (resolved === RESERVED_ALIASES.LOCAL) {
         return { type: 'local', baseUrl: `file://${join(projectDir, CONFIG_DIR_NAME, 'objects')}` };
       }
       const profile = await resolveDefaultRemote(projectDir);
