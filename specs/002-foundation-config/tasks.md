@@ -60,9 +60,9 @@
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Implement the `init` command in src/cli/init.ts (creates `.bazel_git_lfs/`; safe re-run; adds `.bazel_git_lfs/` to `.gitignore` when a git repository is detected; output per contracts/cli.md)
-- [ ] T014 [US1] Register `init` in src/cli/index.ts with Commander and implement `--json` output + `--help` (FR-011)
-- [ ] T015 [US1] Register `scan`/`sync`/`verify`/`list`/`search`/`rewrite` as stub commands in src/cli/index.ts (print "not implemented in this stage" to stderr, exit 1) per contracts/cli.md stubs section
+- [x] T013 [US1] Implement the `init` command in src/cli/init.ts (creates `.bazel_git_lfs/`; safe re-run; adds `.bazel_git_lfs/` to `.gitignore` when a git repository is detected; output per contracts/cli.md)
+- [x] T014 [US1] Register `init` in src/cli/index.ts with Commander and implement `--json` output + `--help` (FR-011)
+- [x] T015 [US1] Register `scan`/`sync`/`verify`/`list`/`search`/`rewrite` as stub commands in src/cli/index.ts (print "not implemented in this stage" to stderr, exit 1) per contracts/cli.md stubs section
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
