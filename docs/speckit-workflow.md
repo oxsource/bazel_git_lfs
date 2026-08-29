@@ -103,17 +103,17 @@ specs/<###-feature>/                   # 每个 feature 的规格目录
 
 ---
 
-## 6. 当前 Feature 实例（bazel-git-lfs, 001-bazel-dependency-mirror）
+## 6. 当前 Feature 实例（bazel-git-lfs, 001-bazel-git-lfs-guide）
 
 作为示例，当前 feature 已按本流程拆分为 6 个阶段：
 
 | Stage | 名称 | 设计规划指导 |
 |-------|------|--------------|
-| S1 | Foundation & Config | [tasks.md T001](./../specs/001-bazel-dependency-mirror/tasks.md) (待创建) |
-| S2 | Discovery (`scan`) | [tasks.md T002](./../specs/001-bazel-dependency-mirror/tasks.md) (待创建) |
-| S3 | Mirroring Core (`sync`) | [tasks.md T003](./../specs/001-bazel-dependency-mirror/tasks.md) (待创建) |
-| S4 | Mirror Consumption (`verify`/`list`/`search`) | [tasks.md T004](./../specs/001-bazel-dependency-mirror/tasks.md) (待创建) |
-| S5 | Business Project Rewrite (`rewrite`) | [tasks.md T005](./../specs/001-bazel-dependency-mirror/tasks.md) (待创建) |
-| S6 | Packaging & Release | [tasks.md T006](./../specs/001-bazel-dependency-mirror/tasks.md) (待创建) |
+| S1 | Foundation & Config | [tasks.md T001](./../specs/001-bazel-git-lfs-guide/tasks.md) (待创建) |
+| S2 | Discovery (`scan`) | [tasks.md T002](./../specs/001-bazel-git-lfs-guide/tasks.md) (待创建) |
+| S3 | Mirroring Core (`sync`) | [tasks.md T003](./../specs/001-bazel-git-lfs-guide/tasks.md) (待创建) |
+| S4 | Mirror Consumption (`verify`/`list`/`search`) | [tasks.md T004](./../specs/001-bazel-git-lfs-guide/tasks.md) (待创建) |
+| S5 | Business Project Rewrite (`rewrite`) | [tasks.md T005](./../specs/001-bazel-git-lfs-guide/tasks.md) (待创建) |
+| S6 | Packaging & Release | [tasks.md T006](./../specs/001-bazel-git-lfs-guide/tasks.md) (待创建) |
 
-详细说明见 `specs/001-bazel-dependency-mirror/plan.md` 与 `tasks.md`。
+详细说明见 `specs/001-bazel-git-lfs-guide/plan.md` 与 `tasks.md`。
