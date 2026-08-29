@@ -20,51 +20,65 @@ Or as a project devDependency:
 npm install --save-dev bazel-git-lfs
 ```
 
-## Configure
+## Initialize
 
 ```bash
+cd my-bazel-project
 bazel-git-lfs init
 ```
 
-Sets the mirror repository URL, cache directory, and git/lfs paths in the local config.
+Creates `.bazel_git_lfs/` config area and updates `.gitignore`.
 
-## Scan a project (read-only)
+## Configure a mirror remote
 
 ```bash
-bazel-git-lfs scan ./graph_runtime
+bazel-git-lfs remote add --alias prod --url git@gitlab.example.com:bazel/bazel-mirror.git
+bazel-git-lfs remote set-default prod
+```
+
+## Discover dependencies
+
+```bash
+bazel-git-lfs inspect
 ```
 
 Lists discovered `http_archive`/`http_file` dependencies with their URLs and SHA256. Nothing is downloaded or changed.
 
-## Mirror dependencies
+## Fetch and mirror
 
 ```bash
-bazel-git-lfs sync ./graph_runtime ./cpp_network ./medias
+bazel-git-lfs fetch     # download from source URLs
+bazel-git-lfs push      # upload to Git LFS mirror
 ```
 
-Downloads missing artifacts, verifies SHA256, caches them, and pushes to the mirror. Identical content is stored once.
-
-## Verify mirror integrity
+## Pull from a teammate's mirror
 
 ```bash
-bazel-git-lfs verify
+bazel-git-lfs pull
 ```
 
-## Query the mirror
+## Check mirror integrity
 
 ```bash
-bazel-git-lfs list
-bazel-git-lfs search abseil
+bazel-git-lfs status                          # all artifacts
+bazel-git-lfs status --sha256-prefix ab12     # filter by SHA256
+bazel-git-lfs status --source-url github      # filter by source URL
+bazel-git-lfs status abseil                   # search by keyword
 ```
 
-## Point a project at the mirror (opt-in)
+## Reset local state (keep config)
 
 ```bash
-bazel-git-lfs checkout ./graph_runtime        # dry-run: previews changes
-bazel-git-lfs checkout ./graph_runtime --apply  # writes mirror URLs
+bazel-git-lfs clean
 ```
 
-`checkout` only touches URLs for artifacts already in the mirror, and only writes files when `--apply` is given.
+## Point project at the mirror
+
+```bash
+bazel-git-lfs checkout prod        # switch to remote mirror URLs
+bazel-git-lfs checkout local       # switch to local HTTP server (port 8022)
+bazel-git-lfs checkout default     # restore to original source URLs
+```
 
 ## Publish a new release
 

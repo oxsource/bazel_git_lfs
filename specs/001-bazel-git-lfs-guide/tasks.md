@@ -17,62 +17,62 @@
 
 | Task | Stage | Design Planning Guide (设计规划指导) |
 |------|-------|-------------------------------------|
-| T001 | S1 Foundation & Config | `#<design-planning-guide-link>` (待创建) |
-| T002 | S2 Discovery (`inspect`) | [plan.md](../003-discovery-inspect/plan.md) (设计规划指导) |
-| T003 | S3 Mirroring Core (`fetch`/`pull`/`push`) | `#<design-planning-guide-link>` (待创建) |
-| T004 | S4 Mirror Consumption (`verify`/`list`/`search`) | `#<design-planning-guide-link>` (待创建) |
-| T005 | S5 Business Project Checkout (`checkout`) | `#<design-planning-guide-link>` (待创建) |
+| T001 | S1 Foundation & Config | [002-foundation-config](../002-foundation-config/) |
+| T002 | S2 Discovery (`inspect`) | [003-discovery-inspect](../003-discovery-inspect/) |
+| T003 | S3 Mirroring Core (`fetch`/`push`/`pull`) | [004-fetch-pull-push](../004-fetch-pull-push/) |
+| T004 | S4 Mirror Consumption (`status`/`clean`) | [005-status-clean](../005-status-clean/) |
+| T005 | S5 Business Project Checkout (`checkout`) | [006-business-checkout](../006-business-checkout/) |
 | T006 | S6 Packaging & Release | `#<design-planning-guide-link>` (待创建) |
 
 ---
 
 ## Stage 1: Foundation & Config (S1)
 
-**Goal**: TypeScript/Node.js scaffold, CLI skeleton, `init` wizard + namespace-tagged profile management (see plan.md Stage 1).
+**Goal**: TypeScript/Node.js scaffold, CLI skeleton, `init` + profile management (see plan.md Stage 1).
 
-**Exit signal**: `bazel-git-lfs init` creates/updates a profile; commands resolve the active config.
+**Exit signal**: `bazel-git-lfs init` creates the config area; `remote add` saves a profile; commands resolve the effective config.
 
-- [ ] T001 [S1] Complete Foundation & Config stage per [plan.md](./plan.md) Stage 1 → 设计规划指导: `#<design-planning-guide-link>` (待创建)
+- [x] T001 [S1] Complete Foundation & Config stage per [plan.md](./plan.md) Stage 1 → 设计规划指导: [002-foundation-config](../002-foundation-config/)
 
 ---
 
 ## Stage 2: Discovery (S2)
 
-**Goal**: Read-only `inspect` of Bazel projects extracting remote HTTP dependencies, with a cache command persisting results for fast `list` reads (see plan.md Stage 2).
+**Goal**: Read-only `inspect` of Bazel projects extracting remote HTTP dependencies, persisting results as a snapshot (see plan.md Stage 2).
 
-**Exit signal**: `inspect` returns the exact expected dependency set for fixture projects without side effects; the cache persists the result.
+**Exit signal**: `inspect` returns the exact expected dependency set for fixture projects without side effects; the snapshot persists the result.
 
-- [x] T002 [S2] Complete Discovery stage per [plan.md](./plan.md) Stage 2 → 设计规划指导: [003-discovery-inspect/plan.md](../003-discovery-inspect/plan.md)
+- [x] T002 [S2] Complete Discovery stage per [plan.md](./plan.md) Stage 2 → 设计规划指导: [003-discovery-inspect](../003-discovery-inspect/)
 
 ---
 
 ## Stage 3: Mirroring Core (S3)
 
-**Goal**: `fetch` / `pull` / `push` — download + SHA256 verify, content-addressed objects store (Maven-style reversed-domain layout), Git LFS upload, mirror manifest, commit/push (see plan.md Stage 3; supersedes the original single `sync` command).
+**Goal**: `fetch` / `push` / `pull` — download + SHA256 verify, content-addressed objects store, Git LFS upload, mirror manifest, commit/push (see plan.md Stage 3).
 
 **Exit signal**: `fetch`+`push` populate the mirror on first run; re-push is idempotent; `pull` reproduces the local store from the mirror alone; hash mismatch rejected at every entry point.
 
-- [ ] T003 [S3] Complete Mirroring Core stage per [plan.md](./plan.md) Stage 3 → Spec: [004-fetch-pull-push/spec.md](../004-fetch-pull-push/spec.md)
+- [x] T003 [S3] Complete Mirroring Core stage per [plan.md](./plan.md) Stage 3 → 设计规划指导: [004-fetch-pull-push](../004-fetch-pull-push/)
 
 ---
 
 ## Stage 4: Mirror Consumption (S4)
 
-**Goal**: `verify`, `list`, `search` — query and audit the mirror (see plan.md Stage 4).
+**Goal**: `status` / `clean` — query and audit the mirror, reset local state (see plan.md Stage 4).
 
-**Exit signal**: Tampered artifact reported corrupt; inventory queries return correct artifacts.
+**Exit signal**: Tampered artifact reported corrupt; `clean` resets state while preserving config.
 
-- [ ] T004 [S4] Complete Mirror Consumption stage per [plan.md](./plan.md) Stage 4 → 设计规划指导: `#<design-planning-guide-link>` (待创建)
+- [x] T004 [S4] Complete Mirror Consumption stage per [plan.md](./plan.md) Stage 4 → 设计规划指导: [005-status-clean](../005-status-clean/)
 
 ---
 
 ## Stage 5: Business Project Checkout (S5)
 
-**Goal**: `checkout` — point business Bazel projects at mirror URLs, dry-run by default (see plan.md Stage 5).
+**Goal**: `checkout <alias>` — switch dependency URLs between original, local, or remote mirror sources (see plan.md Stage 5).
 
-**Exit signal**: Dry-run previews changes without writing; write mode updates only target URLs.
+**Exit signal**: `checkout <alias>` rewrites URLs correctly; `checkout default` restores original URLs; pre-commit hook prevents non-default URLs from being committed.
 
-- [ ] T005 [S5] Complete Business Project Checkout stage per [plan.md](./plan.md) Stage 5 → 设计规划指导: `#<design-planning-guide-link>` (待创建)
+- [x] T005 [S5] Complete Business Project Checkout stage per [plan.md](./plan.md) Stage 5 → 设计规划指导: [006-business-checkout](../006-business-checkout/)
 
 ---
 
@@ -91,7 +91,7 @@
 - **Sequential by design**: Stages S1 → S6 are delivered in order. Each stage's design planning guide is analyzed, planned, and implemented independently; a stage's task here is checked off when that design planning guide is complete.
 - **S1** must complete before any later stage can run against real config.
 - **S2** precedes **S3** (fetch/pull/push consume the discovery snapshot).
-- **S3** precedes **S4** and **S5** (verify/list/search/checkout consume the mirrored manifest).
+- **S3** precedes **S4** and **S5** (status/clean/checkout consume the mirrored manifest).
 - **S6** is final (packaging assumes the CLI is functional).
 
 ## Notes
