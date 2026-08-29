@@ -108,14 +108,14 @@
 
 ### Tests for User Story 3
 
-- [ ] T027 [P] [US3] Unit tests for pull orchestration logic in tests/unit/pull-orchestration.spec.ts with injected fakes (manifest hit → pulled; local cache valid → cached without transfer; corrupt local entry → re-fetch from mirror; manifest miss → not-in-mirror failing result; corrupt mirror object → failed, not stored) per research decision 6 (FR-011)
+- [x] T027 [P] [US3] Unit tests for pull orchestration logic in tests/unit/pull-orchestration.spec.ts with injected fakes (manifest hit → pulled; local cache valid → cached without transfer; corrupt local entry → re-fetch from mirror; manifest miss → not-in-mirror failing result; corrupt mirror object → failed, not stored) per research decision 6 (FR-011)
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Implement pull orchestration in src/transfer/pull.ts (resolve snapshot deps against repository.readManifest; classify cached/pulled/not-in-mirror; materialize via lfsPull --include for needed paths; verify SHA256 on arrival; atomic put into local store; non-zero outcome when any not-in-mirror/failed) (FR-010, FR-011)
-- [ ] T029 [US3] Implement the `pull` command in src/cli/pull.ts (init-check → snapshot check → default profile → orchestrate → JSON `{ ok, command: "pull", projectDir, objectsDir, remote, results, summary }`) per contracts/cli.md (FR-012, FR-018)
-- [ ] T030 [US3] Register the `pull` command in src/cli/index.ts and remove the `sync` stub from STUB_COMMANDS (verify `verify/list/search/rewrite` stubs remain) per FR-019
-- [ ] T031 [US3] Integration test for the full round trip in tests/integration/round-trip.spec.ts (fetch+push in project A → fresh project B copy with same snapshot: pull → 3× pulled, local stores byte-identical, zero origin requests (assert origin server received no fetch-project-B requests); dep absent from manifest → not-in-mirror + exit 1; re-pull → all cached) per SC-003
+- [x] T028 [US3] Implement pull orchestration in src/transfer/pull.ts (resolve snapshot deps against repository.readManifest; classify cached/pulled/not-in-mirror; materialize via lfsPull --include for needed paths; verify SHA256 on arrival; atomic put into local store; non-zero outcome when any not-in-mirror/failed) (FR-010, FR-011)
+- [x] T029 [US3] Implement the `pull` command in src/cli/pull.ts (init-check → snapshot check → default profile → orchestrate → JSON `{ ok, command: "pull", projectDir, objectsDir, remote, results, summary }`) per contracts/cli.md (FR-012, FR-018)
+- [x] T030 [US3] Register the `pull` command in src/cli/index.ts and remove the `sync` stub from STUB_COMMANDS (verify `verify/list/search/rewrite` stubs remain) per FR-019
+- [x] T031 [US3] Integration test for the full round trip in tests/integration/round-trip.spec.ts (fetch+push in project A → fresh project B copy with same snapshot: pull → 3× pulled, local stores byte-identical, zero origin requests (assert origin server received no fetch-project-B requests); dep absent from manifest → not-in-mirror + exit 1; re-pull → all cached) per SC-003
 
 **Checkpoint**: All user stories independently functional (SC-001..SC-005 covered)
 

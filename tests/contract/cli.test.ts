@@ -34,7 +34,9 @@ function runCli(args: string[], cwd?: string): Captured {
     if (e.code === 'commander.helpDisplayed' || e.code === 'commander.version') {
       captured.code = 0;
     } else {
-      throw err;
+      // Mirrors run() in src/cli/index.ts: any commander usage error is
+      // reported as a usage error with exit code 2.
+      captured.code = 2;
     }
   } finally {
     process.stdout.write = originalOut;
@@ -53,15 +55,16 @@ function tempProject(): string {
 }
 
 describe('CLI command surface', () => {
-  it('--help lists all commands', () => {
+  it('--help lists all commands (sync superseded by fetch/pull/push)', () => {
     const { stdout } = runCli(['node', 'bazel-git-lfs', '--help']);
-    for (const cmd of ['init', 'inspect', 'sync', 'verify', 'list', 'search', 'rewrite']) {
+    for (const cmd of ['init', 'inspect', 'fetch', 'pull', 'push', 'verify', 'list', 'search', 'rewrite']) {
       expect(stdout).toContain(cmd);
     }
+    expect(stdout).not.toMatch(/\bsync\b/);
   });
 
   it('stub commands exit non-zero', () => {
-    for (const cmd of ['sync', 'verify', 'list', 'search', 'rewrite']) {
+    for (const cmd of ['verify', 'list', 'search', 'rewrite']) {
       const { code, stderr } = runCli(['node', 'bazel-git-lfs', cmd]);
       expect(code).toBe(1);
       expect(stderr).toContain('not implemented');
@@ -69,9 +72,21 @@ describe('CLI command surface', () => {
   });
 
   it('stub commands emit JSON error with --json', () => {
-    const { stdout } = runCli(['node', 'bazel-git-lfs', 'sync', '--json']);
+    const { stdout } = runCli(['node', 'bazel-git-lfs', 'verify', '--json']);
     const parsed = JSON.parse(stdout);
     expect(parsed).toEqual({ ok: false, error: expect.stringContaining('not implemented') });
+  });
+
+  it('removed sync stub reports an unknown-command usage error (exit 2)', () => {
+    const { code } = runCli(['node', 'bazel-git-lfs', 'sync']);
+    expect(code).toBe(2);
+  });
+
+  it('fetch/pull/push reject extra arguments with a usage error (exit 2)', () => {
+    for (const cmd of ['fetch', 'pull', 'push']) {
+      const { code } = runCli(['node', 'bazel-git-lfs', cmd, 'extra-arg']);
+      expect(code).toBe(2);
+    }
   });
 
   it('init command is registered with help', () => {

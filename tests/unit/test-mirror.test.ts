@@ -5,7 +5,6 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { createTestMirror, gitLfsAvailable } from '../helpers/test-mirror';
 
-const ALPHA_SHA = '15a019bdffa8f446afa81fe49b132cde0ce178a62978e5f885f5ae9be094ad07';
 const lfs = gitLfsAvailable();
 
 describe.skipIf(!lfs)('test-mirror helper (requires git-lfs)', () => {
@@ -20,10 +19,11 @@ describe.skipIf(!lfs)('test-mirror helper (requires git-lfs)', () => {
       const push = mirror.git(['push', 'origin', 'HEAD:refs/heads/main']);
       expect(push.status).toBe(0);
 
-      // The working clone stores an LFS pointer for the object (not raw bytes).
-      const ls = mirror.git(['ls-tree', '-r', 'HEAD', '--name-only']).stdout;
-      expect(ls).toContain('objects/com/example/abc123');
-      expect(mirror.readWorkFile('objects/com/example/abc123')).toContain('git-lfs');
+      // The commit stores an LFS pointer for the object (not raw bytes);
+      // the working-tree file itself keeps its original content.
+      const pointer = mirror.git(['show', `HEAD:objects/com/example/abc123`]).stdout;
+      expect(pointer).toContain('git-lfs');
+      expect(pointer).toContain('oid sha256:');
     } finally {
       mirror.close();
     }
@@ -33,7 +33,8 @@ describe.skipIf(!lfs)('test-mirror helper (requires git-lfs)', () => {
     const mirror = createTestMirror();
     try {
       const payload = Buffer.from('roundtrip-payload');
-      mirror.writeWorkFile(`objects/x/y/${ALPHA_SHA}`, payload);
+      const payloadSha = createHash('sha256').update(payload).digest('hex');
+      mirror.writeWorkFile(`objects/x/y/${payloadSha}`, payload);
       mirror.commitAll('seed');
       mirror.git(['push', 'origin', 'HEAD:refs/heads/main']);
 
@@ -44,10 +45,10 @@ describe.skipIf(!lfs)('test-mirror helper (requires git-lfs)', () => {
         env: { ...process.env, GIT_LFS_SKIP_SMUDGE: '1', GIT_TERMINAL_PROMPT: '0' },
         stdio: 'ignore',
       });
-      mirror.git(['lfs', 'pull', '--include', `objects/x/y/${ALPHA_SHA}`], { cwd: consumer });
-      const materialized = readFileSync(join(consumer, `objects/x/y/${ALPHA_SHA}`));
+      mirror.git(['lfs', 'pull', '--include', `objects/x/y/${payloadSha}`], { cwd: consumer });
+      const materialized = readFileSync(join(consumer, `objects/x/y/${payloadSha}`));
       expect(materialized.toString()).toBe('roundtrip-payload');
-      expect(createHash('sha256').update(materialized).digest('hex')).toBe(ALPHA_SHA);
+      expect(createHash('sha256').update(materialized).digest('hex')).toBe(payloadSha);
     } finally {
       mirror.close();
     }

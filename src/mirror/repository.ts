@@ -140,7 +140,10 @@ export class GitLfsRepository implements ArtifactRepository {
     message: string,
   ): Promise<UploadResult> {
     for (const object of objects) {
-      const target = join(this.workDir, object.relPath);
+      // Physical mirror layout: `objects/<maven-path>` (LFS-tracked via
+      // .gitattributes); manifest entries record the maven path WITHOUT the
+      // prefix (contracts/cli.md).
+      const target = join(this.workDir, 'objects', object.relPath);
       await mkdir(dirname(target), { recursive: true });
       await copyFile(object.sourcePath, target);
     }
@@ -179,10 +182,14 @@ export class GitLfsRepository implements ArtifactRepository {
     const branch = (await this.git.currentBranch()) ?? 'main';
     const rebase = await this.git.pullRebase('origin', branch);
     if (rebase.status !== 0) {
-      throw new GitError(
-        `git pull --rebase failed (re-run push to retry): ${summarize(rebase)}`,
-        rebase,
-      );
+      // First push to an (yet empty) remote has no branch to rebase onto —
+      // that is fine; anything else is a race we must report (research §8).
+      if (await this.git.remoteBranchExists(branch)) {
+        throw new GitError(
+          `git pull --rebase failed (re-run push to retry): ${summarize(rebase)}`,
+          rebase,
+        );
+      }
     }
 
     const push = await this.git.push(`HEAD:refs/heads/${branch}`);
@@ -195,11 +202,13 @@ export class GitLfsRepository implements ArtifactRepository {
 
   async materialize(relPaths: string[]): Promise<string[]> {
     if (relPaths.length === 0) return [];
-    const pull = await this.git.lfsPullInclude(relPaths);
+    // Manifest paths are maven-relative; physical LFS paths live under objects/.
+    const physical = relPaths.map((relPath) => join('objects', relPath));
+    const pull = await this.git.lfsPullInclude(physical);
     if (pull.status !== 0) {
       throw new GitError(`git lfs pull failed: ${summarize(pull)}`, pull);
     }
-    return relPaths.map((relPath) => join(this.workDir, relPath));
+    return physical.map((relPath) => join(this.workDir, relPath));
   }
 }
 

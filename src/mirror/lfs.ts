@@ -119,6 +119,12 @@ export class GitLfs {
     return this.git(args);
   }
 
+  /** True when the remote has a head branch with this name (ls-remote). */
+  async remoteBranchExists(branch: string, remote = 'origin'): Promise<boolean> {
+    const result = await this.git(['ls-remote', '--heads', remote, `refs/heads/${branch}`]);
+    return result.status === 0 && result.stdout.trim().length > 0;
+  }
+
   async push(refspec?: string): Promise<GitResult> {
     return refspec ? this.git(['push', 'origin', refspec]) : this.git(['push']);
   }

@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { runInit } from '@/cli/init';
 import { runInspect } from '@/cli/inspect';
 import { runFetchCommand } from '@/cli/fetch';
+import { runPullCommand } from '@/cli/pull';
 import { runPushCommand } from '@/cli/push';
 import {
   runRemoteAdd,
@@ -17,7 +18,7 @@ import { printUsageError, OutputOptions } from '@/cli/format';
 
 const VERSION: string = __BGL_VERSION__;
 
-const STUB_COMMANDS = ['sync', 'verify', 'list', 'search', 'rewrite'] as const;
+const STUB_COMMANDS = ['verify', 'list', 'search', 'rewrite'] as const;
 
 export interface CliDeps {
   cwd?: string;
@@ -83,6 +84,19 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .allowExcessArguments(false)
     .action(async () => {
       const code = await runPushCommand({ cwd, env });
+      if (code !== 0) {
+        process.exitCode = code;
+      }
+    });
+
+  program
+    .command('pull')
+    .description(
+      'Transfer snapshot dependencies from the configured Git LFS mirror into the local objects store (JSON)',
+    )
+    .allowExcessArguments(false)
+    .action(async () => {
+      const code = await runPullCommand({ cwd, env });
       if (code !== 0) {
         process.exitCode = code;
       }

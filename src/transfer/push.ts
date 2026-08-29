@@ -54,6 +54,7 @@ export async function runPush(
   const warnings: string[] = [];
   const repository = opts.repository ?? new GitLfsRepository(projectDir, opts.remote.url);
 
+  await repository.ensureWorkingClone();
   const current = await readManifestOrThrow(repository);
 
   const results: PerDependencyResult[] = [];

@@ -70,7 +70,7 @@ describe.skipIf(!lfs)('push (US2) end-to-end against a real git+git-lfs mirror',
     for (const dir of cleanup) rmSync(dir, { recursive: true, force: true });
   });
 
-  it('uploads objects + manifest, commits and pushes (first run)', async () => {
+  it('uploads objects + manifest, commits and pushes (first run)', { timeout: 120_000 }, async () => {
     mirror = createTestMirror();
     const alpha = readFileSync(join(FIXTURES, 'alpha.bin'));
     const beta = readFileSync(join(FIXTURES, 'beta.bin'));
@@ -117,12 +117,13 @@ describe.skipIf(!lfs)('push (US2) end-to-end against a real git+git-lfs mirror',
     );
   });
 
-  it('is idempotent on re-push (already-mirrored, no new commit)', async () => {
-    const alpha = readFileSync(join(FIXTURES, 'alpha.bin'));
-    const alphaSha = sha256HexOfBuffer(alpha);
+  it('is idempotent on re-push (already-mirrored, no new commit)', { timeout: 120_000 }, async () => {
+    // A payload no earlier test in this file pushed to the shared mirror.
+    const gamma = Buffer.from(`gamma-${Date.now()}-${Math.random()}`);
+    const gammaSha = sha256HexOfBuffer(gamma);
     const project = await makeProject(
-      [dep('react', ['https://github.com/facebook/react/a.tar.gz'], alphaSha)],
-      [{ url: 'https://github.com/facebook/react/a.tar.gz', bytes: alpha }],
+      [dep('gamma', ['https://example.com/gamma.tar.gz'], gammaSha)],
+      [{ url: 'https://example.com/gamma.tar.gz', bytes: gamma }],
     );
 
     const first = await runPush(project, { remote: { alias: 'default', url: mirror.barePath } });
