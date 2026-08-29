@@ -17,7 +17,11 @@ export function isValidGitUrl(url: string): boolean {
   }
   try {
     const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    return (
+      parsed.protocol === 'http:' ||
+      parsed.protocol === 'https:' ||
+      parsed.protocol === 'file:'
+    );
   } catch {
     return isSshGitUrl(url);
   }

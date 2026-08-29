@@ -1,1 +1,3 @@
-{"feature_directory": "specs/003-discovery-inspect"}
+{
+  "feature_directory": "specs/004-fetch-pull-push"
+}

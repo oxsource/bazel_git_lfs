@@ -19,7 +19,7 @@
 |------|-------|-------------------------------------|
 | T001 | S1 Foundation & Config | `#<design-planning-guide-link>` (待创建) |
 | T002 | S2 Discovery (`inspect`) | [plan.md](../003-discovery-inspect/plan.md) (设计规划指导) |
-| T003 | S3 Mirroring Core (`sync`) | `#<design-planning-guide-link>` (待创建) |
+| T003 | S3 Mirroring Core (`fetch`/`pull`/`push`) | `#<design-planning-guide-link>` (待创建) |
 | T004 | S4 Mirror Consumption (`verify`/`list`/`search`) | `#<design-planning-guide-link>` (待创建) |
 | T005 | S5 Business Project Rewrite (`rewrite`) | `#<design-planning-guide-link>` (待创建) |
 | T006 | S6 Packaging & Release | `#<design-planning-guide-link>` (待创建) |
@@ -48,11 +48,11 @@
 
 ## Stage 3: Mirroring Core (S3)
 
-**Goal**: `sync` — download, SHA256 verify, content-addressed cache, Git LFS upload, manifest, commit/push (see plan.md Stage 3).
+**Goal**: `fetch` / `pull` / `push` — download + SHA256 verify, content-addressed objects store (Maven-style reversed-domain layout), Git LFS upload, mirror manifest, commit/push (see plan.md Stage 3; supersedes the original single `sync` command).
 
-**Exit signal**: First-time sync populates the mirror; re-sync is idempotent; hash mismatch rejected.
+**Exit signal**: `fetch`+`push` populate the mirror on first run; re-push is idempotent; `pull` reproduces the local store from the mirror alone; hash mismatch rejected at every entry point.
 
-- [ ] T003 [S3] Complete Mirroring Core stage per [plan.md](./plan.md) Stage 3 → 设计规划指导: `#<design-planning-guide-link>` (待创建)
+- [ ] T003 [S3] Complete Mirroring Core stage per [plan.md](./plan.md) Stage 3 → Spec: [004-fetch-pull-push/spec.md](../004-fetch-pull-push/spec.md)
 
 ---
 
@@ -90,7 +90,7 @@
 
 - **Sequential by design**: Stages S1 → S6 are delivered in order. Each stage's design planning guide is analyzed, planned, and implemented independently; a stage's task here is checked off when that design planning guide is complete.
 - **S1** must complete before any later stage can run against real config.
-- **S2** precedes **S3** (sync needs discovery).
+- **S2** precedes **S3** (fetch/pull/push consume the discovery snapshot).
 - **S3** precedes **S4** and **S5** (verify/list/search/rewrite consume the mirrored manifest).
 - **S6** is final (packaging assumes the CLI is functional).
 

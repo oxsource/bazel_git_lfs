@@ -2,6 +2,9 @@
 import { Command } from 'commander';
 import { runInit } from '@/cli/init';
 import { runInspect } from '@/cli/inspect';
+import { runFetchCommand } from '@/cli/fetch';
+import { runPullCommand } from '@/cli/pull';
+import { runPushCommand } from '@/cli/push';
 import {
   runRemoteAdd,
   runRemoteSetDefault,
@@ -15,7 +18,7 @@ import { printUsageError, OutputOptions } from '@/cli/format';
 
 const VERSION: string = __BGL_VERSION__;
 
-const STUB_COMMANDS = ['sync', 'verify', 'list', 'search', 'rewrite'] as const;
+const STUB_COMMANDS = ['verify', 'list', 'search', 'rewrite'] as const;
 
 export interface CliDeps {
   cwd?: string;
@@ -41,10 +44,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .description('Initialize a non-versioned .bazel_git_lfs config area in the current project')
     .option('--json', 'output machine-readable JSON')
     .action(async (options: OutputOptions) => {
-      const code = await runInit({ json: Boolean(options.json), cwd });
-      if (code !== 0) {
-        process.exitCode = code;
-      }
+      process.exitCode = await runInit({ json: Boolean(options.json), cwd });
     });
 
   program
@@ -54,10 +54,37 @@ export function buildProgram(deps: CliDeps = {}): Command {
     )
     .allowExcessArguments(false)
     .action(async () => {
-      const code = await runInspect({ cwd });
-      if (code !== 0) {
-        process.exitCode = code;
-      }
+      process.exitCode = await runInspect({ cwd });
+    });
+
+  program
+    .command('fetch')
+    .description(
+      'Download snapshot dependencies from their source URLs into the local objects store (JSON)',
+    )
+    .allowExcessArguments(false)
+    .action(async () => {
+      process.exitCode = await runFetchCommand({ cwd });
+    });
+
+  program
+    .command('push')
+    .description(
+      'Upload local objects to the configured Git LFS mirror, update the manifest, commit and push (JSON)',
+    )
+    .allowExcessArguments(false)
+    .action(async () => {
+      process.exitCode = await runPushCommand({ cwd, env });
+    });
+
+  program
+    .command('pull')
+    .description(
+      'Transfer snapshot dependencies from the configured Git LFS mirror into the local objects store (JSON)',
+    )
+    .allowExcessArguments(false)
+    .action(async () => {
+      process.exitCode = await runPullCommand({ cwd, env });
     });
 
   const remote = program.command('remote').description('Manage mirror-repository profiles');
@@ -77,9 +104,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
         cwd,
         env,
       });
-      if (code !== 0) {
-        process.exitCode = code;
-      }
+      process.exitCode = code;
     });
 
   remote
@@ -96,9 +121,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
         cwd,
         env,
       });
-      if (code !== 0) {
-        process.exitCode = code;
-      }
+      process.exitCode = code;
     });
 
   remote
@@ -115,9 +138,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
         cwd,
         env,
       });
-      if (code !== 0) {
-        process.exitCode = code;
-      }
+      process.exitCode = code;
     });
 
   remote
@@ -134,9 +155,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
         cwd,
         env,
       });
-      if (code !== 0) {
-        process.exitCode = code;
-      }
+      process.exitCode = code;
     });
 
   const alias = remote.command('alias').description('Manage the global mirror URL alias table');
@@ -148,9 +167,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .option('--json', 'output machine-readable JSON')
     .action(async (name: string, url: string, options: OutputOptions) => {
       const code = await runRemoteAliasAdd({ json: Boolean(options.json), name, url, cwd, env });
-      if (code !== 0) {
-        process.exitCode = code;
-      }
+      process.exitCode = code;
     });
   alias
     .command('list')
@@ -158,9 +175,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .option('--json', 'output machine-readable JSON')
     .action(async (options: OutputOptions) => {
       const code = await runRemoteAliasList({ json: Boolean(options.json), cwd, env });
-      if (code !== 0) {
-        process.exitCode = code;
-      }
+      process.exitCode = code;
     });
   alias
     .command('remove')
@@ -169,9 +184,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .option('--json', 'output machine-readable JSON')
     .action(async (name: string, options: OutputOptions) => {
       const code = await runRemoteAliasRemove({ json: Boolean(options.json), name, cwd, env });
-      if (code !== 0) {
-        process.exitCode = code;
-      }
+      process.exitCode = code;
     });
 
   for (const name of STUB_COMMANDS) {
