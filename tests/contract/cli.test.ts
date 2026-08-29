@@ -61,7 +61,7 @@ function tempProject(): string {
 describe('CLI command surface', () => {
   it('--help lists all commands', async () => {
     const { stdout } = await runCli(['node', 'bazel-git-lfs', '--help']);
-    for (const cmd of ['init', 'inspect', 'fetch', 'pull', 'push', 'status', 'clean', 'rewrite']) {
+    for (const cmd of ['init', 'inspect', 'fetch', 'pull', 'push', 'status', 'clean', 'checkout', 'rewrite']) {
       expect(stdout).toContain(cmd);
     }
   });
@@ -136,5 +136,15 @@ describe('CLI command surface', () => {
       expect(existsSync(target)).toBe(true);
     });
     rmSync(proj, { recursive: true, force: true });
+  });
+
+  it('checkout rejects missing alias with usage error (exit 2)', async () => {
+    const { code } = await runCli(['node', 'bazel-git-lfs', 'checkout']);
+    expect(code).toBe(2);
+  });
+
+  it('checkout is registered with help', async () => {
+    const { stdout } = await runCli(['node', 'bazel-git-lfs', 'checkout', '--help']);
+    expect(stdout).toContain('checkout');
   });
 });

@@ -7,6 +7,7 @@ import { runPullCommand } from '@/cli/pull';
 import { runPushCommand } from '@/cli/push';
 import { runStatusCommand } from '@/cli/status';
 import { runCleanCommand } from '@/cli/clean';
+import { runCheckoutCommand } from '@/cli/checkout';
 import {
   runRemoteAdd,
   runRemoteSetDefault,
@@ -115,6 +116,17 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .allowExcessArguments(false)
     .action(async () => {
       process.exitCode = await runCleanCommand({ cwd });
+    });
+
+  program
+    .command('checkout')
+    .description(
+      'Switch dependency URLs between original, local, or remote mirror sources based on the alias (JSON)',
+    )
+    .argument('<alias>', 'target alias: default/-- (original), local/@ (file://), or a profile name')
+    .allowExcessArguments(false)
+    .action(async (alias: string) => {
+      process.exitCode = await runCheckoutCommand({ cwd, alias });
     });
 
   const remote = program.command('remote').description('Manage mirror-repository profiles');

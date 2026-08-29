@@ -3,8 +3,24 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { projectConfigDir, CONFIG_DIR_NAME } from '@/config/paths';
 import { printResult, printError, EXIT_OK, EXIT_ERROR, OutputOptions } from '@/cli/format';
+import { readCheckoutState } from '@/mirror/checkout';
 
 const GITIGNORE_ENTRY = '.bazel_git_lfs/';
+
+const PRE_COMMIT_HOOK = `#!/bin/sh
+# bazel-git-lfs pre-commit hook: auto-restore URLs to original source before commit
+set -e
+PROJECT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [ -f "$PROJECT_DIR/.bazel_git_lfs/checkout-state.json" ]; then
+  echo "bazel-git-lfs: detected non-default checkout, restoring URLs..."
+  if command -v bazel-git-lfs > /dev/null 2>&1; then
+    bazel-git-lfs checkout default
+    echo "bazel-git-lfs: URLs restored to original source before commit."
+  else
+    echo "bazel-git-lfs: warning - 'bazel-git-lfs' command not found, skipping auto-restore" >&2
+  fi
+fi
+`;
 
 export interface InitOptions extends OutputOptions {
   cwd: string;
@@ -23,9 +39,21 @@ export async function runInit(opts: InitOptions): Promise<number> {
 
   if (isGitRepo(opts.cwd)) {
     await ensureGitIgnore(gitIgnorePath, opts);
+    await installPreCommitHook(opts.cwd);
   }
 
-  printResult({ ok: true, configPath: dir, message: `Initialized config area at ${dir}` }, opts);
+  const warnings: string[] = [];
+
+  const state = await readCheckoutState(opts.cwd);
+  if (state) {
+    warnings.push(`Non-default checkout detected (alias: "${state.alias}"). Run "bazel-git-lfs checkout default" to restore original URLs before committing.`);
+  }
+
+  const result: Record<string, unknown> = { ok: true, configPath: dir, message: `Initialized config area at ${dir}` };
+  if (warnings.length > 0) {
+    result.warnings = warnings;
+  }
+  printResult(result, opts);
   return EXIT_OK;
 }
 
@@ -35,6 +63,16 @@ function isGitRepo(cwd: string): boolean {
     return true;
   } catch {
     return false;
+  }
+}
+
+async function installPreCommitHook(cwd: string): Promise<void> {
+  const gitDir = execFileSync('git', ['rev-parse', '--git-dir'], { cwd, encoding: 'utf8' }).trim();
+  const hookPath = join(gitDir, 'hooks', 'pre-commit');
+  try {
+    await writeFile(hookPath, PRE_COMMIT_HOOK, { mode: 0o755 });
+  } catch {
+    // non-fatal: hook installation is best-effort
   }
 }
 

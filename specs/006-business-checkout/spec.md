@@ -23,7 +23,7 @@
 
 ### User Story 1 — Switch project URLs to a target source (Priority: P1)
 
-A user runs `bazel-git-lfs checkout <alias>` to switch the project's dependency URLs to a different source. The alias specifies the target: `default` (or shorthand `--`) restores original source URLs, `@` (or `local`) switches to local file:// paths under `.bazel_git_lfs/objects/`, and a named alias switches to that profile's configured remote URL. The tool reads the mirror manifest and config profiles, resolves the target URLs, and directly rewrites the Bazel project files. After execution, the tool prints a confirmation listing which files were modified and how many URLs were changed.
+A user runs `bazel-git-lfs checkout <alias>` to switch the project's dependency URLs to a different source. The alias specifies the target: `default` (or shorthand `--`) restores original source URLs, `@` (or `local`) starts a local HTTP server on port 8022 serving `.bazel_git_lfs/objects/` and rewrites URLs to `http://127.0.0.1:8022/`, and a named alias switches to that profile's configured remote URL. The tool reads the mirror manifest and config profiles, resolves the target URLs, and directly rewrites the Bazel project files. After execution, the tool prints a confirmation listing which files were modified and how many URLs were changed.
 
 **Why this priority**: This is the core checkout action — the entire feature. Users need one command to switch between URL sources. Safety is handled by the pre-commit hook (US2) rather than a dry-run mode.
 
@@ -32,7 +32,7 @@ A user runs `bazel-git-lfs checkout <alias>` to switch the project's dependency 
 **Acceptance Scenarios**:
 
 1. **Given** a Bazel project with artifacts in the mirror, **When** the user runs `checkout <profile-alias>`, **Then** the matching dependency URLs are rewritten to that alias's remote URL.
-2. **Given** a Bazel project at original URLs, **When** the user runs `checkout @` or `checkout local`, **Then** the URLs are rewritten to local file:// paths under `.bazel_git_lfs/`.
+2. **Given** a Bazel project at original URLs, **When** the user runs `checkout @` or `checkout local`, **Then** a local HTTP server starts on port 8022, and the URLs are rewritten to `http://127.0.0.1:8022/` paths.
 3. **Given** a project whose URLs have been rewritten, **When** the user runs `checkout default` or `checkout --`, **Then** the mirror/local URLs are replaced with the original source URLs from the mirror manifest.
 4. **Given** a project already at the target URLs, **When** the user runs `checkout <alias>`, **Then** the tool reports no changes needed (idempotent).
 5. **Given** a Bazel project with multiple dependency declaration files (WORKSPACE and MODULE.bazel), **When** the user runs `checkout <alias>`, **Then** all matching URLs across all files are updated.
@@ -64,6 +64,9 @@ A user runs `bazel-git-lfs init` which installs a pre-commit git hook in the pro
 - What happens when the user runs `checkout default` on a project that was never checked out? (no-op, reports no changes)
 - What happens when the mirror manifest is missing during `checkout default`? (error: manifest required to find original URLs)
 - What happens when `checkout @` runs but `.bazel_git_lfs/objects/` does not exist? (error: local store not populated)
+- What happens when `checkout @` runs but port 8022 is already in use? (error: port unavailable, suggest using a different port or stopping the existing server)
+- What happens when `checkout default` runs after `checkout @`? (the local HTTP server is automatically stopped, and the checkout state file is removed)
+- What happens when python3 is not available? (error: python3 required for local HTTP server)
 - What happens when `init` is re-run on an already-initialized project? (the pre-commit hook is idempotently reinstalled)
 - Does the pre-commit hook require git to be installed? (yes — the hook is a git pre-commit hook; init installs it only if the project is a git repository)
 - What happens if the pre-commit hook fails (e.g., checkout default errors)? (the hook prints the error and exits non-zero, blocking the commit)
@@ -78,7 +81,7 @@ A user runs `bazel-git-lfs init` which installs a pre-commit git hook in the pro
 - **FR-001**: System MUST provide a `checkout` command that accepts an alias as a positional argument.
 - **FR-002**: `checkout` MUST support alias values: `default` (or shorthand `--`), `local` (or shorthand `@`), and any configured profile alias.
 - **FR-003**: `default` (and `--`) MUST restore dependency URLs to their original source URLs as recorded in the mirror manifest.
-- **FR-004**: `local` (and `@`) MUST switch dependency URLs to local file:// paths under `.bazel_git_lfs/`.
+- **FR-004**: `local` (and `@`) MUST start a local HTTP server on port 8022 serving `.bazel_git_lfs/objects/` and rewrite dependency URLs to `http://127.0.0.1:8022/<sha256>/<path>`.
 - **FR-005**: A configured profile alias MUST switch dependency URLs to that profile's configured remote URL.
 - **FR-006**: `checkout` MUST directly write the URL changes — no dry-run or preview mode.
 - **FR-007**: `checkout` MUST only modify the `urls` declarations in Bazel dependency files (WORKSPACE, MODULE.bazel). No other parts of the project files may be modified.
@@ -106,7 +109,7 @@ A user runs `bazel-git-lfs init` which installs a pre-commit git hook in the pro
 ### Measurable Outcomes
 
 - **SC-001**: `checkout default` (or `--`) correctly restores all previously rewritten URLs back to their original source URLs, leaving other files untouched.
-- **SC-002**: `checkout local` (or `@`) correctly rewrites all matching URLs to local file:// paths under `.bazel_git_lfs/`, leaving non-matching dependencies untouched.
+- **SC-002**: `checkout local` (or `@`) starts a local HTTP server on port 8022 and correctly rewrites all matching URLs to `http://127.0.0.1:8022/` paths, leaving non-matching dependencies untouched.
 - **SC-003**: `checkout <profile-alias>` correctly rewrites all matching URLs to that alias's configured remote URL.
 - **SC-004**: `checkout` is idempotent — re-running with the same alias reports no changes and makes no modifications.
 - **SC-005**: Only the `urls` declarations in Bazel files are modified; no other content in the project is changed.

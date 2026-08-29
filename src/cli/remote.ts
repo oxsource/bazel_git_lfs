@@ -2,6 +2,7 @@ import { FsProfileStore, ConfigError, ConfigFile } from '@/config/store';
 import { FsAliasManager } from '@/config/alias';
 import { resolveScope, Scope } from '@/config/scope';
 import { isValidGitUrl, isValidAlias } from '@/config/profile';
+import { assertNotReserved } from '@/mirror/alias';
 import {
   printResult,
   printError,
@@ -88,6 +89,13 @@ export async function runRemoteAdd(opts: RemoteAddOptions): Promise<number> {
   const alias = opts.alias ?? DEFAULT_ALIAS;
   if (!isValidAlias(alias)) {
     printUsageError(`Invalid alias "${alias}" (allowed: letters, digits, . _ -).`, opts);
+    return EXIT_USAGE;
+  }
+
+  try {
+    assertNotReserved(alias);
+  } catch (err) {
+    printUsageError((err as Error).message, opts);
     return EXIT_USAGE;
   }
 
@@ -348,6 +356,12 @@ export async function runRemoteAliasAdd(opts: RemoteAliasAddOptions): Promise<nu
   }
 
   let next: ConfigFile;
+  try {
+    assertNotReserved(opts.name);
+  } catch (err) {
+    printUsageError((err as Error).message, opts);
+    return EXIT_USAGE;
+  }
   try {
     next = aliases.add(config, opts.name, opts.url);
   } catch (err) {

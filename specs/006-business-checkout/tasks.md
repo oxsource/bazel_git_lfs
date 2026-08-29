@@ -31,7 +31,7 @@ description: "Task list for Stage 5 — Business Project Checkout feature implem
 
 **Purpose**: Verify the existing project is in a clean state and ready for extension
 
-- [ ] T001 Verify existing project builds and tests pass (`npm run build && npm test`)
+- [X] T001 Verify existing project builds and tests pass (`npm run build && npm test`)
 
 **Checkpoint**: Project is ready for extension work
 
@@ -43,10 +43,10 @@ description: "Task list for Stage 5 — Business Project Checkout feature implem
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 [P] Create reserved aliases constants module in `src/mirror/alias.ts` (export `RESERVED_ALIASES` with `default`/`--`/`local`/`@`, and helper `isReservedAlias(name)`/`assertNotReserved(name)`)
-- [ ] T003 [P] Update `remote add` and `remote alias add` in `src/cli/remote.ts` to validate alias names against `isReservedAlias()` and reject with a clear error
-- [ ] T004 Register `checkout` command in `src/cli/index.ts` (positional `<alias>` argument, no flags, `allowExcessArguments(false)`, JSON and human-readable output)
-- [ ] T005 Update contract test in `tests/contract/cli.test.ts` to verify `checkout` command is registered, `remote add` rejects reserved aliases, and help text is correct
+- [X] T002 [P] Create reserved aliases constants module in `src/mirror/alias.ts` (export `RESERVED_ALIASES` with `default`/`--`/`local`/`@`, and helper `isReservedAlias(name)`/`assertNotReserved(name)`)
+- [X] T003 [P] Update `remote add` and `remote alias add` in `src/cli/remote.ts` to validate alias names against `isReservedAlias()` and reject with a clear error
+- [X] T004 Register `checkout` command in `src/cli/index.ts` (positional `<alias>` argument, no flags, `allowExcessArguments(false)`, JSON and human-readable output)
+- [X] T005 Update contract test in `tests/contract/cli.test.ts` to verify `checkout` command is registered, `remote add` rejects reserved aliases, and help text is correct
 
 **Checkpoint**: Foundation ready — reserved aliases defined, CLI registered, contract tests pass
 
@@ -62,13 +62,13 @@ description: "Task list for Stage 5 — Business Project Checkout feature implem
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T006 [P] [US1] Unit test for URL resolution and rewriting engine in `tests/unit/checkout.test.ts` (alias resolution per type, pattern matching, idempotency, confirmation output)
-- [ ] T007 [P] [US1] Integration test for checkout end-to-end against a real mirror in `tests/integration/checkout.test.ts`
+- [X] T006 [P] [US1] Unit test for URL resolution and rewriting engine in `tests/unit/checkout.test.ts` (alias resolution per type, pattern matching, idempotency, confirmation output)
+- [X] T007 [P] [US1] Integration test for checkout end-to-end against a real mirror in `tests/integration/checkout.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Create checkout orchestration module in `src/mirror/checkout.ts` (alias resolution, target URL derivation per alias type, URL rewriting engine with pattern matching, idempotency check, confirmation output generation)
-- [ ] T009 [US1] Create CLI checkout command handler in `src/cli/checkout.ts` (parse alias argument, init-check, delegate to `src/mirror/checkout.ts`, print result or confirmation)
+- [X] T008 [US1] Create checkout orchestration module in `src/mirror/checkout.ts` (alias resolution, target URL derivation per alias type, URL rewriting engine with pattern matching, idempotency check, confirmation output generation)
+- [X] T009 [US1] Create CLI checkout command handler in `src/cli/checkout.ts` (parse alias argument, init-check, delegate to `src/mirror/checkout.ts`, print result or confirmation)
 
 **Checkpoint**: At this point, `bazel-git-lfs checkout <alias>` works end-to-end for all three alias types
 
@@ -84,13 +84,13 @@ description: "Task list for Stage 5 — Business Project Checkout feature implem
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T010 [P] [US2] Unit test for checkout state management and pre-commit hook logic in `tests/unit/checkout.test.ts` (state file read/write/remove, hook auto-restore detection)
-- [ ] T011 [P] [US2] Integration test for pre-commit hook end-to-end in `tests/integration/checkout.test.ts` (init → checkout → commit → assert restore)
+- [X] T010 [P] [US2] Unit test for checkout state management and pre-commit hook logic in `tests/unit/checkout.test.ts` (state file read/write/remove, hook auto-restore detection)
+- [X] T011 [P] [US2] Integration test for pre-commit hook end-to-end in `tests/integration/checkout.test.ts` (init → checkout → commit → assert restore)
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Implement checkout state management in `src/mirror/checkout.ts` (read/write/remove `.bazel_git_lfs/checkout-state.json`, update state on checkout execution)
-- [ ] T013 [US2] Update `src/cli/init.ts` to install a pre-commit git hook (write `.git/hooks/pre-commit` script that checks state and runs `checkout default`)
+- [X] T012 [US2] Implement checkout state management in `src/mirror/checkout.ts` (read/write/remove `.bazel_git_lfs/checkout-state.json`, update state on checkout execution)
+- [X] T013 [US2] Update `src/cli/init.ts` to install a pre-commit git hook (write `.git/hooks/pre-commit` script that checks state and runs `checkout default`)
 
 **Checkpoint**: At this point, both checkout and the auto-restore hook work end-to-end
 
@@ -100,9 +100,9 @@ description: "Task list for Stage 5 — Business Project Checkout feature implem
 
 **Purpose**: Final validation and documentation
 
-- [ ] T014 Run `npm run build` to verify the project compiles without errors
-- [ ] T015 Run `npm test` to verify all tests pass (unit, integration, contract)
-- [ ] T016 Run quickstart.md validation scenarios to verify the feature works as documented
+- [X] T014 Run `npm run build` to verify the project compiles without errors
+- [X] T015 Run `npm test` to verify all tests pass (unit, integration, contract)
+- [X] T016 Run quickstart.md validation scenarios to verify the feature works as documented
 
 ---
 
