@@ -1,4 +1,4 @@
-# Research: Discovery (scan)
+# Research: Discovery (inspect)
 
 Phase 0 research decisions resolving the technical unknowns for Stage 2.
 
@@ -6,7 +6,7 @@ Phase 0 research decisions resolving the technical unknowns for Stage 2.
 
 **Decision**: A lightweight, purpose-built Starlark-aware extractor focused on `http_archive` and `http_file` rule calls, rather than a full Starlark interpreter.
 
-**Rationale**: Bazel files are Starlark (Python-like), but scan only needs name/url(s)/sha256/strip_prefix from two rule types. A full interpreter is heavyweight and unnecessary (G5). A focused extractor with a small tokenizer/parser handles real-world patterns: single `url`, `urls` list, multiline calls, comments.
+**Rationale**: Bazel files are Starlark (Python-like), but `inspect` only needs name/url(s)/sha256/strip_prefix from two rule types. A full interpreter is heavyweight and unnecessary (G5). A focused extractor with a small tokenizer/parser handles real-world patterns: single `url`, `urls` list, multiline calls, comments.
 
 **Alternatives considered:** Full Starlark interpreter (e.g., a Python-in-JS engine — overkill, heavy); regex-only (fragile across formatting, poor loop handling). Chosen: a structured keyword-argument parser tolerant of list/string values and comments.
 
@@ -30,9 +30,9 @@ Phase 0 research decisions resolving the technical unknowns for Stage 2.
 
 **Decision**: When the `bazel` binary is available, invoke `bazel query` (e.g., `bazel query //external:* --output=build` and/or repo-level queries) with a timeout to obtain the authoritative set of external repositories and their dependency relationships. Compare against file-scanning results: query is authoritative for "actually used vs merely declared in loaded macros"; both sets are reported. If `bazel` is unavailable or the query fails/timeouts, fall back to file scanning alone and note that query was not used (FR-011).
 
-**Rationale**: FR-011 + clarification. Query leverages Bazel's own evaluation to reliably determine the used external repos (avoiding false positives from loaded-but-unused macros) and surfaces dependency relationships — exactly the concern raised. The fallback keeps `scan` working on machines without Bazel.
+**Rationale**: FR-011 + clarification. Query leverages Bazel's own evaluation to reliably determine the used external repos (avoiding false positives from loaded-but-unused macros) and surfaces dependency relationships — exactly the concern raised. The fallback keeps `inspect` working on machines without Bazel.
 
-**Alternatives considered:** Relying solely on query (breaks when Bazel absent/fails — SC-006 wants reliable scan); solely on file scanning (cannot authoritatively distinguish used vs merely-declared). Chosen: hybrid with query authoritative when present.
+**Alternatives considered:** Relying solely on query (breaks when Bazel absent/fails — SC-006 wants reliable inspect); solely on file scanning (cannot authoritatively distinguish used vs merely-declared). Chosen: hybrid with query authoritative when present.
 
 ## 3. File discovery & merge
 
@@ -40,19 +40,27 @@ Phase 0 research decisions resolving the technical unknowns for Stage 2.
 
 **Rationale**: FR-001/FR-001a/FR-009 + spec Edge Cases. Recording `sourceFile` per dependency supports traceability and later stages.
 
-**Alternatives considered:** Precedence-based overwrite (hides information); skipping when both WORKSPACE and WORKSPACE.bazel exist (Bazel itself prefers WORKSPACE.bazel — but scan should report what exists).
+**Alternatives considered:** Precedence-based overwrite (hides information); skipping when both WORKSPACE and WORKSPACE.bazel exist (Bazel itself prefers WORKSPACE.bazel — but `inspect` should report what exists).
+
+## 3a. Dependency snapshot (cache)
+
+**Decision**: The cache command runs the same discovery and writes the resulting `ScanResult` as a snapshot file under the project's `.bazel_git_lfs/dependencies.json`, written atomically (temp file + rename). `inspect` itself never writes (FR-003). Later `list`/query reads consume the snapshot for speed (FR-003a/FR-013).
+
+**Rationale**: Per the clarification: keep `inspect` read-only and provide a dedicated cache command so `list` reads are fast. Atomic write prevents a partial/corrupt cache.
+
+**Alternatives considered:** `inspect` writing automatically (violates the read-only guarantee — rejected per clarification); no cache at all (every `list` re-inspects — slow). Chosen: separate cache command + atomic snapshot.
 
 ## 4. `init` requirement check
 
-**Decision**: `scan` checks for the initialized config area using the Stage 1 config-directory path helpers (project-local `.bazel_git_lfs`). If missing, it errors with "Run `bazel-git-lfs init` first." It does **not** require a mirror profile.
+**Decision**: `inspect`/cache check for the initialized config area using the Stage 1 config-directory path helpers (project-local `.bazel_git_lfs`). If missing, they error with "Run `bazel-git-lfs init` first." They do **not** require a mirror profile.
 
-**Rationale**: FR-008 + SC-006. Reuses Stage 1 infra (G4). No profile needed because scan is config-independent beyond the init check (assumption).
+**Rationale**: FR-008 + SC-006. Reuses Stage 1 infra (G4). No profile needed because discovery is config-independent beyond the init check (assumption).
 
-**Alternatives considered:** Requiring a full resolved profile (over-restrictive — scan doesn't need the mirror); no check (violates FR-008).
+**Alternatives considered:** Requiring a full resolved profile (over-restrictive — discovery doesn't need the mirror); no check (violates FR-008).
 
 ## 5. Output & exit conventions
 
-**Decision**: Default human output lists dependencies; `--json` prints structured `{ ok, projectDir, dependencies: [...] }`; errors to stderr with exit codes 0 (success incl. empty), 1 (failure), 2 (usage). Reuses Stage 1 `format` helpers.
+**Decision**: Default human output lists dependencies; `--json` prints structured `{ ok, projectDir, dependencies, warnings, filesScanned, queryUsed, ... }`; errors to stderr with exit codes 0 (success incl. empty), 1 (failure), 2 (usage). Reuses Stage 1 `format` helpers.
 
 **Rationale**: FR-005/FR-006/FR-007 + contracts consistency with the Stage 1 CLI.
 
@@ -60,7 +68,7 @@ Phase 0 research decisions resolving the technical unknowns for Stage 2.
 
 ## 6. Testing strategy
 
-**Decision**: Vitest. Unit tests for the parser (literal, multiline, comments, `urls` list, `for`-loop over list-of-dicts/tuples, unresolvable loop), the loader (load-following into `.bzl`, cycle bounds, missing-file warnings), and the scanner (file discovery, merge, query cross-check). Query behavior is tested with a **mocked `bazel` binary** in `tests/fixtures/bin/`. Integration tests run `scan` end-to-end against `tests/fixtures/projects/` with a temp config area. Contract tests assert `scan` human/`--json` output and exit codes.
+**Decision**: Vitest. Unit tests for the parser (literal, multiline, comments, `urls` list, `for`-loop over list-of-dicts/tuples, unresolvable loop), the loader (load-following into `.bzl`, cycle bounds, missing-file warnings), the scanner (file discovery, merge, query cross-check), and the snapshot (read/write, atomicity). Query behavior is tested with a **mocked `bazel` binary** in `tests/fixtures/bin/`. Integration tests run `inspect`/cache end-to-end against `tests/fixtures/projects/` with a temp config area. Contract tests assert `inspect`/cache human/`--json` output and exit codes.
 
 **Rationale**: Fixtures give deterministic, reproducible discovery tests (SC-002/SC-007). Mocking `bazel` makes query tests hermetic and covers both the present and absent/fallback paths. Matches the Stage 1 testing approach.
 

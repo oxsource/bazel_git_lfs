@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { runInit } from '@/cli/init';
+import { runInspect } from '@/cli/inspect';
 import {
   runRemoteAdd,
   runRemoteSetDefault,
@@ -14,7 +15,7 @@ import { printUsageError, OutputOptions } from '@/cli/format';
 
 const VERSION: string = __BGL_VERSION__;
 
-const STUB_COMMANDS = ['scan', 'sync', 'verify', 'list', 'search', 'rewrite'] as const;
+const STUB_COMMANDS = ['sync', 'verify', 'list', 'search', 'rewrite'] as const;
 
 export interface CliDeps {
   cwd?: string;
@@ -40,6 +41,22 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .option('--json', 'output machine-readable JSON')
     .action(async (options: OutputOptions) => {
       const code = await runInit({ json: Boolean(options.json), cwd });
+      if (code !== 0) {
+        process.exitCode = code;
+      }
+    });
+
+  program
+    .command('inspect')
+    .description('Read-only discovery of a Bazel project\u2019s remote HTTP dependencies')
+    .argument('[project-dir]', 'project directory (default: current directory)')
+    .option('--json', 'output machine-readable JSON')
+    .action(async (projectDir: string | undefined, options: OutputOptions) => {
+      const code = await runInspect({
+        json: Boolean(options.json),
+        cwd,
+        projectDir,
+      });
       if (code !== 0) {
         process.exitCode = code;
       }

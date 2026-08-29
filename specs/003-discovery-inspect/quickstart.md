@@ -1,6 +1,6 @@
-# Quickstart: bazel-git-lfs scan (Stage 2 — Discovery)
+# Quickstart: bazel-git-lfs inspect (Stage 2 — Discovery)
 
-Discover the remote HTTP dependencies a Bazel project needs. This stage is read-only — nothing is downloaded or changed.
+Discover the remote HTTP dependencies a Bazel project needs. `inspect` is read-only — nothing is downloaded or changed. A separate `cache` command persists the result for fast `list` reads.
 
 ## Prerequisites
 
@@ -14,22 +14,30 @@ cd <your-bazel-project>
 bazel-git-lfs init
 ```
 
-## Scan a project
+## Inspect a project (read-only)
 
 ```bash
-bazel-git-lfs scan            # scan the current directory
-bazel-git-lfs scan ./graph_runtime   # scan a specific project
+bazel-git-lfs inspect            # inspect the current directory
+bazel-git-lfs inspect ./graph_runtime   # inspect a specific project
 ```
 
-Lists every `http_archive`/`http_file` dependency found in `WORKSPACE`, `WORKSPACE.bazel`, and `MODULE.bazel`, with name, SHA256, source file, and primary URL. Nothing is downloaded or modified.
+Lists every `http_archive`/`http_file` dependency found in `WORKSPACE`, `WORKSPACE.bazel`, `MODULE.bazel`, and any loaded `.bzl` files, with name, SHA256, source file, and primary URL. Nothing is downloaded or modified.
 
 ## Machine-readable output
 
 ```bash
-bazel-git-lfs scan ./graph_runtime --json
+bazel-git-lfs inspect ./graph_runtime --json
 ```
 
 Prints structured JSON with the full dependency set — useful for scripts and CI.
+
+## Cache the snapshot for fast `list` reads
+
+```bash
+bazel-git-lfs cache ./graph_runtime
+```
+
+Writes the discovered dependency snapshot to `.bazel_git_lfs/dependencies.json` (atomically). Later `list`/query reads use this snapshot instead of re-inspecting. `inspect` itself never writes anything.
 
 ## What it handles
 
@@ -46,3 +54,4 @@ If a loop-generated declaration can't be fully resolved, a `load()` target is mi
 
 - Not initialized → run `bazel-git-lfs init` first.
 - Missing/unreadable project dir or unparsable Bazel file → error on stderr, non-zero exit.
+- `.bazel_git_lfs` not writable (cache) → error on stderr, non-zero exit.

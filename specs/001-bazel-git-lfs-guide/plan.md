@@ -6,7 +6,7 @@
 
 ## Summary
 
-Build a lightweight CLI tool, `bazel-git-lfs`, implemented in **TypeScript on Node.js**, that discovers Bazel remote HTTP dependencies (`http_archive`/`http_file` in `WORKSPACE`/`MODULE.bazel`), downloads them, verifies SHA256 integrity, caches by content-address, and mirrors valid artifacts into a shared Git LFS repository on self-hosted GitLab. Commands: `init`, `scan`, `sync`, `verify`, `list`, `search`, `rewrite`. Published as a public npm package.
+Build a lightweight CLI tool, `bazel-git-lfs`, implemented in **TypeScript on Node.js**, that discovers Bazel remote HTTP dependencies (`http_archive`/`http_file` in `WORKSPACE`/`MODULE.bazel`), downloads them, verifies SHA256 integrity, caches by content-address, and mirrors valid artifacts into a shared Git LFS repository on self-hosted GitLab. Commands: `init`, `inspect`, `sync`, `verify`, `list`, `search`, `rewrite`. Published as a public npm package.
 
 **Scope of this plan**: This plan focuses ONLY on how the requirements are split into delivery stages and roughly what each stage does. It deliberately does NOT analyze specific tasks, module structure, or code-level design — the detailed work for each stage will be analyzed in a separate design planning guide (参照本次建议单独设计规划指导分析完成).
 
@@ -17,7 +17,7 @@ The V1 requirements are split into **6 sequential stages**, each independently r
 | Stage | Name | Core focus | Requirement coverage |
 |-------|------|-----------|----------------------|
 | 1 | Foundation & Config | Project scaffold, CLI skeleton, `init` + profile/config management | FR-014, FR-016 |
-| 2 | Discovery | `scan` — parse Bazel projects, extract HTTP deps (read-only) | FR-001, FR-002, FR-003, FR-013 |
+| 2 | Discovery | `inspect` — parse Bazel projects (read-only), extract HTTP deps; a cache command persists results for fast `list` | FR-001, FR-002, FR-003, FR-013 |
 | 3 | Mirroring Core | `sync` — download, verify, cache, upload to Git LFS, manifest | FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-012, FR-015 |
 | 4 | Mirror Consumption | `verify`, `list`, `search` — query & integrity-check the mirror | FR-010, FR-011 |
 | 5 | Business Project Rewrite | `rewrite` — point business projects at mirror URLs (dry-run default) | FR-011a, FR-011b, FR-013 |
@@ -37,15 +37,16 @@ The V1 requirements are split into **6 sequential stages**, each independently r
   - Active-profile selection with `--namespace` override; credentials fully delegated to system git (no secrets stored).
 - **Exit signal**: `init` creates the config area; `remote add` saves a profile; subsequent commands (or `remote list --effective`) can resolve the effective config.
 
-### Stage 2 — Discovery (`scan`)
+### Stage 2 — Discovery (`inspect`)
 
 **设计规划指导**: [tasks.md T002](./tasks.md) — pending design planning guide link (待创建)
 
 - **Objective**: Read-only discovery of a Bazel project's remote HTTP dependencies.
 - **Roughly what it does**:
-  - Parse `WORKSPACE`, `WORKSPACE.bazel`, and `MODULE.bazel`; extract `http_archive`/`http_file` rules with name, URL(s), declared SHA256, strip prefix.
-  - Report a dependency inventory with no downloads, uploads, or file modifications.
-- **Exit signal**: `scan` returns the exact expected dependency set for fixture projects (incl. empty and multi-URL cases) without side effects.
+  - `inspect` parses `WORKSPACE`, `WORKSPACE.bazel`, and `MODULE.bazel` plus `load()`ed `.bzl` files; extracts `http_archive`/`http_file` rules (literal and `for`-loop/variable declarations) with name, URL(s), declared SHA256, strip prefix; cross-checks against `bazel query` when available.
+  - A separate **cache command** writes the discovery result into the project's `.bazel_git_lfs` (e.g., a dependencies snapshot) so `list` queries are fast; `inspect` itself stays strictly read-only.
+  - `inspect` requires an initialized config area (`init`); it reports the dependency inventory with no downloads, uploads, or file modifications.
+- **Exit signal**: `inspect` returns the exact expected dependency set for fixture projects (incl. empty and multi-URL cases) without side effects; the cache command persists the result for fast `list` reads.
 
 ### Stage 3 — Mirroring Core (`sync`)
 

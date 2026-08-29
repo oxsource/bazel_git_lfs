@@ -1,6 +1,6 @@
-# Contracts: bazel-git-lfs scan (Stage 2 — Discovery)
+# Contracts: bazel-git-lfs inspect (Stage 2 — Discovery)
 
-Command-line interface contracts for Stage 2 (Discovery). This extends the Stage 1 CLI contract: the `scan` stub becomes a real command.
+Command-line interface contracts for Stage 2 (Discovery). This extends the Stage 1 CLI contract: the `scan` stub becomes the real `inspect` command, and a cache command is added.
 
 ## Global (from Stage 1)
 
@@ -10,13 +10,13 @@ Command-line interface contracts for Stage 2 (Discovery). This extends the Stage
 - Exit codes: `0` success, `1` error/failure, `2` usage error.
 - Errors go to stderr; structured results (when `--json`) go to stdout.
 
-## Command: scan
+## Command: inspect
 
 ```
-bazel-git-lfs scan [<project-dir>] [--json]
+bazel-git-lfs inspect [<project-dir>] [--json]
 ```
 
-Read-only discovery of remote HTTP dependencies in a Bazel project. `project-dir` defaults to the current directory when omitted (FR-004). Never downloads, uploads, modifies, or caches anything (FR-003).
+Read-only discovery of remote HTTP dependencies in a Bazel project. `project-dir` defaults to the current directory when omitted (FR-004). Never downloads, uploads, modifies, or caches anything (FR-003); only the cache command writes the snapshot.
 
 **Prerequisite**: the project must have an initialized config area (`bazel-git-lfs init`). If not initialized, exit `1` with: `error: No config area found in <project-dir>. Run "bazel-git-lfs init" first.` (FR-008). A mirror profile is NOT required (SC-006 assumption).
 
@@ -54,12 +54,30 @@ Plus a trailing summary line with the dependency count. Empty result prints `No 
 }
 ```
 
-**Exit / error conventions**:
+## Command: cache
+
+```
+bazel-git-lfs cache [<project-dir>] [--json]
+```
+
+Persists the discovered dependency snapshot into the project's `.bazel_git_lfs/dependencies.json` (atomic write, FR-013) so later `list`/query reads are fast (FR-003a). Runs the same discovery as `inspect`; the only difference is it writes the snapshot.
+
+**Prerequisite**: initialized config area (`init`); missing → exit `1` with the init-first error (FR-008). `.bazel_git_lfs` not writable → exit `1` with a clear error.
+
+**Output**: confirmation of the snapshot path. With `--json`: `{ "ok": true, "snapshotPath": "<path>", "dependencyCount": <n> }`.
+
+**Behavior**:
+- Refreshes/overwrites an existing snapshot atomically (no partial/corrupt cache on interruption).
+- Re-runnable safely (idempotent).
+
+## Exit / error conventions (shared by inspect and cache)
+
 - Project directory missing/unreadable → exit `1`, error to stderr.
 - A Bazel file present but unparsable → exit `1`, error naming the file (FR-007).
 - No `init` config area → exit `1` with the init-first error (FR-008).
+- `.bazel_git_lfs` not writable (cache only) → exit `1`, clear error.
 - Missing/unknown flags → exit `2` (usage).
-- Unresolvable loop-generated declarations, missing `load()` targets, or Bazel-query unavailability are reported in `warnings` (and, with `--json`, as structured warnings) rather than silently dropped (FR-010/FR-011); the scan still exits `0` for otherwise-fine results.
+- Unresolvable loop-generated declarations, missing `load()` targets, or Bazel-query unavailability are reported in `warnings` (and, with `--json`, as structured warnings) rather than silently dropped (FR-010/FR-011); the command still exits `0` for otherwise-fine results.
 
 ## Internal shared model
 

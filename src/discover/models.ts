@@ -1,0 +1,30 @@
+export interface Dependency {
+  name: string;
+  urls: string[];
+  sha256: string | null;
+  stripPrefix: string | null;
+  sourceFile: string;
+  resolved: boolean;
+}
+
+export interface ScanResult {
+  projectDir: string;
+  dependencies: Dependency[];
+  warnings: string[];
+  filesScanned: string[];
+  queryUsed: boolean;
+  queryExternalRepos: string[] | null;
+  dependencyRelations: Record<string, string[]> | null;
+}
+
+export function emptyScanResult(projectDir: string): ScanResult {
+  return {
+    projectDir,
+    dependencies: [],
+    warnings: [],
+    filesScanned: [],
+    queryUsed: false,
+    queryExternalRepos: null,
+    dependencyRelations: null,
+  };
+}

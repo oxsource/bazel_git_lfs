@@ -1,0 +1,18 @@
+workspace(name = "fixture_multiupload")
+
+# Multi-URL archive: urls list with multiple mirrors
+http_archive(
+    name = "libcurl",
+    urls = [
+        "https://github.com/curl/curl/releases/download/curl-8_5_0/curl-8.5.0.tar.gz",
+        "https://mirror.example.com/curl-8.5.0.tar.gz",
+    ],
+    sha256 = "4444444444444444444444444444444444444444444444444444444444444444",
+)
+
+# Comments and trailing commas
+http_archive(
+    name = "openssl",  # release archive
+    url = "https://github.com/openssl/openssl/archive/refs/tags/openssl-3.2.1.tar.gz",
+    sha256 = "5555555555555555555555555555555555555555555555555555555555555555",
+)

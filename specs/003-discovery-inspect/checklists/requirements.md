@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Stage 2 - Discovery (scan)
+# Specification Quality Checklist: Stage 2 - Discovery (inspect)
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-08-29
@@ -33,4 +33,4 @@
 
 - All items pass. Specification is ready for the planning phase.
 - TypeScript/Node.js implementation is inherited from the parent guide (001-bazel-git-lfs-guide) and the foundation stage (002-foundation-config); intentionally kept out of this spec to preserve the "no implementation details" quality bar.
-- Session 2026-08-29 clarifications (scan requires `init`; discovery must handle `for`-loop/variable-based rule declarations; dependencies may live in `load()`ed `.bzl` files; combine file scanning with Bazel's native `query`) are integrated into user stories, FR-001a/FR-002a/FR-008/FR-010/FR-011/FR-012, SC-006/SC-007, edge cases, and assumptions; no markers remain.
+- Session 2026-08-29 clarifications (discovery command renamed to `inspect`, strictly read-only; separate `cache` command persists the snapshot to `.bazel_git_lfs` for fast `list` reads; requires `init`; discovery must handle `for`-loop/variable-based rule declarations; dependencies may live in `load()`ed `.bzl` files; combine file scanning with Bazel's native `query`) are integrated into user stories, FR-001a/FR-002a/FR-003a/FR-008/FR-010/FR-011/FR-012/FR-013, SC-006/SC-007/SC-008, edge cases, and assumptions; no markers remain.
