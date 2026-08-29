@@ -24,10 +24,10 @@
 
 **Purpose**: Project initialization and basic structure (TypeScript/Node.js CLI, per plan.md Technical Context)
 
-- [ ] T001 Create project structure per implementation plan (src/cli, src/config, tests/unit, tests/integration, tests/contract)
-- [ ] T002 Initialize npm package with package.json (name `bazel-git-lfs`, bin entry `bazel-git-lfs`, Node >= 18, TypeScript config tsconfig.json)
-- [ ] T003 [P] Configure linting and formatting tools (eslint, prettier) and add npm scripts (build, lint, test, typecheck)
-- [ ] T004 [P] Add Vitest test framework setup in tests/ with a trivial smoke test
+- [x] T001 Create project structure per implementation plan (src/cli, src/config, tests/unit, tests/integration, tests/contract)
+- [x] T002 Initialize npm package with package.json (name `bazel-git-lfs`, bin entry `bazel-git-lfs`, Node >= 18, TypeScript config tsconfig.json)
+- [x] T003 [P] Configure linting and formatting tools (eslint, prettier) and add npm scripts (build, lint, test, typecheck)
+- [x] T004 [P] Add Vitest test framework setup in tests/ with a trivial smoke test
 
 **Checkpoint**: Project builds, CLI binary is invocable with `--help`.
 
@@ -39,14 +39,14 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 Create Profile type in src/config/profile.ts per data-model.md (namespace, mirrorRepoUrl, gitLabHost, lfsEnabled, createdAt, updatedAt; namespace validation regex `[a-zA-Z0-9._-]`)
-- [ ] T006 Implement path resolution in src/config/paths.ts (config dir discovery: project-local `<cwd>/.bazel_git_lfs`, global `~/.bazel_git_lfs` honoring `BAZEL_GIT_LFS_HOME`, via os.homedir()) per research decision 1
-- [ ] T007 Implement scope discovery in src/config/scope.ts (project-local vs global scope resolution, default = project-local, `--global` opt-in) per research decision 1
-- [ ] T008 Implement fs-backed ProfileStore in src/config/store.ts behind an interface (atomic write via temp file + rename; read with parse/schema validation; corrupted file → clear error naming the config path) per research decisions 2, 3
-- [ ] T009 Implement URL format validation helper in src/config/profile.ts (must parse as HTTP(S) or SSH git URL; format only, no network) per research decision 9 (FR-014a)
-- [ ] T010 Implement shared output helpers in src/cli/format.ts (human-readable + `--json` modes, errors to stderr, exit codes 0/1/2 per contracts/cli.md Global section)
-- [ ] T011 Implement global alias table in src/config/alias.ts (add/list/remove; `remote.alias.<name> = <url>`; reject values starting with `@` for single-level resolution) per research decision 8 (FR-013b)
-- [ ] T012 Implement config resolution in src/config/resolve.ts (`resolveConfig({ scope?, namespace? })` → effective Profile: scope layering project-local > global → explicit `--namespace` → active default → error "No mirror configured. Run `bazel-git-lfs init` and `bazel-git-lfs remote add` first.") per research decision 5 (FR-008)
+- [x] T005 Create Profile type in src/config/profile.ts per data-model.md (namespace, mirrorRepoUrl, gitLabHost, lfsEnabled, createdAt, updatedAt; namespace validation regex `[a-zA-Z0-9._-]`)
+- [x] T006 Implement path resolution in src/config/paths.ts (config dir discovery: project-local `<cwd>/.bazel_git_lfs`, global `~/.bazel_git_lfs` honoring `BAZEL_GIT_LFS_HOME`, via os.homedir()) per research decision 1
+- [x] T007 Implement scope discovery in src/config/scope.ts (project-local vs global scope resolution, default = project-local, `--global` opt-in) per research decision 1
+- [x] T008 Implement fs-backed ProfileStore in src/config/store.ts behind an interface (atomic write via temp file + rename; read with parse/schema validation; corrupted file → clear error naming the config path) per research decisions 2, 3
+- [x] T009 Implement URL format validation helper in src/config/profile.ts (must parse as HTTP(S) or SSH git URL; format only, no network) per research decision 9 (FR-014a)
+- [x] T010 Implement shared output helpers in src/cli/format.ts (human-readable + `--json` modes, errors to stderr, exit codes 0/1/2 per contracts/cli.md Global section)
+- [x] T011 Implement global alias table in src/config/alias.ts (add/list/remove; `remote.alias.<name> = <url>`; reject values starting with `@` for single-level resolution) per research decision 8 (FR-013b)
+- [x] T012 Implement config resolution in src/config/resolve.ts (`resolveConfig({ scope?, namespace? })` → effective Profile: scope layering project-local > global → explicit `--namespace` → active default → error "No mirror configured. Run `bazel-git-lfs init` and `bazel-git-lfs remote add` first.") per research decision 5 (FR-008)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 

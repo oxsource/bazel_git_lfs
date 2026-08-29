@@ -1,0 +1,47 @@
+{
+  "name": "bazel-git-lfs",
+  "version": "0.1.0",
+  "description": "Discover, cache, and mirror Bazel remote HTTP dependencies into a shared Git LFS repository",
+  "bin": {
+    "bazel-git-lfs": "./dist/cli/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli/index.ts",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "bazel",
+    "git-lfs",
+    "mirror",
+    "cli"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^18.19.130",
+    "@types/prompts": "^2.4.9",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^2.1.9"
+  }
+}
