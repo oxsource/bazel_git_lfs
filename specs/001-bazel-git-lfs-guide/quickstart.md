@@ -60,11 +60,11 @@ bazel-git-lfs search abseil
 ## Point a project at the mirror (opt-in)
 
 ```bash
-bazel-git-lfs rewrite ./graph_runtime        # dry-run: previews changes
-bazel-git-lfs rewrite ./graph_runtime --apply  # writes mirror URLs
+bazel-git-lfs checkout ./graph_runtime        # dry-run: previews changes
+bazel-git-lfs checkout ./graph_runtime --apply  # writes mirror URLs
 ```
 
-`rewrite` only touches URLs for artifacts already in the mirror, and only writes files when `--apply` is given.
+`checkout` only touches URLs for artifacts already in the mirror, and only writes files when `--apply` is given.
 
 ## Publish a new release
 

@@ -21,7 +21,7 @@
 | T002 | S2 Discovery (`inspect`) | [plan.md](../003-discovery-inspect/plan.md) (设计规划指导) |
 | T003 | S3 Mirroring Core (`fetch`/`pull`/`push`) | `#<design-planning-guide-link>` (待创建) |
 | T004 | S4 Mirror Consumption (`verify`/`list`/`search`) | `#<design-planning-guide-link>` (待创建) |
-| T005 | S5 Business Project Rewrite (`rewrite`) | `#<design-planning-guide-link>` (待创建) |
+| T005 | S5 Business Project Checkout (`checkout`) | `#<design-planning-guide-link>` (待创建) |
 | T006 | S6 Packaging & Release | `#<design-planning-guide-link>` (待创建) |
 
 ---
@@ -66,13 +66,13 @@
 
 ---
 
-## Stage 5: Business Project Rewrite (S5)
+## Stage 5: Business Project Checkout (S5)
 
-**Goal**: `rewrite` — point business Bazel projects at mirror URLs, dry-run by default (see plan.md Stage 5).
+**Goal**: `checkout` — point business Bazel projects at mirror URLs, dry-run by default (see plan.md Stage 5).
 
 **Exit signal**: Dry-run previews changes without writing; write mode updates only target URLs.
 
-- [ ] T005 [S5] Complete Business Project Rewrite stage per [plan.md](./plan.md) Stage 5 → 设计规划指导: `#<design-planning-guide-link>` (待创建)
+- [ ] T005 [S5] Complete Business Project Checkout stage per [plan.md](./plan.md) Stage 5 → 设计规划指导: `#<design-planning-guide-link>` (待创建)
 
 ---
 
@@ -91,7 +91,7 @@
 - **Sequential by design**: Stages S1 → S6 are delivered in order. Each stage's design planning guide is analyzed, planned, and implemented independently; a stage's task here is checked off when that design planning guide is complete.
 - **S1** must complete before any later stage can run against real config.
 - **S2** precedes **S3** (fetch/pull/push consume the discovery snapshot).
-- **S3** precedes **S4** and **S5** (verify/list/search/rewrite consume the mirrored manifest).
+- **S3** precedes **S4** and **S5** (verify/list/search/checkout consume the mirrored manifest).
 - **S6** is final (packaging assumes the CLI is functional).
 
 ## Notes

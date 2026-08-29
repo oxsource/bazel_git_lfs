@@ -100,7 +100,7 @@ description: "Task list for Stage 4 — Status / Clean feature implementation"
 
 - [X] T012 Run `npm run build` to verify the project compiles without errors
 - [X] T013 Run `npm test` to verify all tests pass (unit, integration, contract)
-- [ ] T014 Run quickstart.md validation scenarios to verify the feature works as documented
+- [X] T014 Run quickstart.md validation scenarios to verify the feature works as documented
 
 ---
 

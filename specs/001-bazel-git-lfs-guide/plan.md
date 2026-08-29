@@ -6,7 +6,7 @@
 
 ## Summary
 
-Build a lightweight CLI tool, `bazel-git-lfs`, implemented in **TypeScript on Node.js**, that discovers Bazel remote HTTP dependencies (`http_archive`/`http_file` in `WORKSPACE`/`MODULE.bazel`), downloads them, verifies SHA256 integrity, caches by content-address, and mirrors valid artifacts into a shared Git LFS repository on self-hosted GitLab. Commands: `init`, `inspect`, `sync`, `verify`, `list`, `search`, `rewrite`. Published as a public npm package.
+Build a lightweight CLI tool, `bazel-git-lfs`, implemented in **TypeScript on Node.js**, that discovers Bazel remote HTTP dependencies (`http_archive`/`http_file` in `WORKSPACE`/`MODULE.bazel`), downloads them, verifies SHA256 integrity, caches by content-address, and mirrors valid artifacts into a shared Git LFS repository on self-hosted GitLab. Commands: `init`, `inspect`, `sync`, `verify`, `list`, `search`, `checkout`. Published as a public npm package.
 
 **Scope of this plan**: This plan focuses ONLY on how the requirements are split into delivery stages and roughly what each stage does. It deliberately does NOT analyze specific tasks, module structure, or code-level design — the detailed work for each stage will be analyzed in a separate design planning guide (参照本次建议单独设计规划指导分析完成).
 
@@ -20,7 +20,7 @@ The V1 requirements are split into **6 sequential stages**, each independently r
 | 2 | Discovery | `inspect` — parse Bazel projects, extract HTTP deps, persist snapshot to `.bazel_git_lfs/dependencies.json` (JSON-only output; current project only) | FR-001, FR-002, FR-003, FR-013 |
 | 3 | Mirroring Core | `sync` — download, verify, cache, upload to Git LFS, manifest | FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-012, FR-015 |
 | 4 | Mirror Consumption | `verify`, `list`, `search` — query & integrity-check the mirror | FR-010, FR-011 |
-| 5 | Business Project Rewrite | `rewrite` — point business projects at mirror URLs (dry-run default) | FR-011a, FR-011b, FR-013 |
+| 5 | Business Project Checkout | `checkout` — point business projects at mirror URLs (dry-run default) | FR-011a, FR-011b, FR-013 |
 | 6 | Packaging & Release | npm package setup, documentation, repeatable release process | FR-014a, FR-014b |
 
 ## Stage Details
@@ -71,7 +71,7 @@ The V1 requirements are split into **6 sequential stages**, each independently r
   - `list`/`search` display the mirror inventory and filter by keyword.
 - **Exit signal**: Tampered artifact is reported as corrupt; inventory queries return correct artifacts.
 
-### Stage 5 — Business Project Rewrite (`rewrite`)
+### Stage 5 — Business Project Checkout (`checkout`)
 
 **设计规划指导**: [tasks.md T005](./tasks.md) — pending design planning guide link (待创建)
 
@@ -105,7 +105,7 @@ The V1 requirements are split into **6 sequential stages**, each independently r
 
 **Performance Goals**: Scan a typical Bazel project in < 5s; verify cached artifacts without re-downloading; idempotent re-sync is near-instant when cached.
 
-**Constraints**: MUST NOT mutate business Bazel projects except via `rewrite` (dry-run default). MUST NOT store any artifact failing SHA256 verification. MUST NOT reimplement Git/Git LFS protocols (call system binaries). MUST NOT store Git credentials (system credential helpers / SSH keys only).
+**Constraints**: MUST NOT mutate business Bazel projects except via `checkout` (dry-run default). MUST NOT store any artifact failing SHA256 verification. MUST NOT reimplement Git/Git LFS protocols (call system binaries). MUST NOT store Git credentials (system credential helpers / SSH keys only).
 
 **Scale/Scope**: Bazel `http_archive`/`http_file` remote HTTP deps only; tens-to-hundreds of artifacts across a handful of company projects; single-company mirror. Mavenrepo-style cloud config is deferred to V2.
 
@@ -116,7 +116,7 @@ The V1 requirements are split into **6 sequential stages**, each independently r
 The `.specify/memory/constitution.md` is an unfilled template; gates are derived from the bootstrap doc (§18 success criteria, §19 core design principles):
 
 - **G1 — Integrity (non-negotiable)**: No artifact whose SHA256 mismatches its declared value may ever be stored or mirrored. → PASS (FR-005, FR-006)
-- **G2 — Non-mutation of business projects**: `scan`/`sync`/`verify`/`list`/`search` must never modify business Bazel projects; only `rewrite` may, and only with an explicit write flag (dry-run default). → PASS (FR-013, FR-011a)
+- **G2 — Non-mutation of business projects**: `scan`/`sync`/`verify`/`list`/`search` must never modify business Bazel projects; only `checkout` may, and only with an explicit write flag (dry-run default). → PASS (FR-013, FR-011a)
 - **G3 — Content-addressed deduplication**: identical content (same SHA256) across URLs/projects stored once. → PASS (FR-006)
 - **G4 — Backend replaceability**: discovery/cache logic not coupled to a specific storage backend; repository behind an interface. → PASS (FR-012)
 - **G5 — Lightweight & simple**: leverage system `git`/`git-lfs`; no reimplementation of Git/LFS protocols; no heavy artifact-repo infra in V1. → PASS (FR-015, FR-016, Assumptions)

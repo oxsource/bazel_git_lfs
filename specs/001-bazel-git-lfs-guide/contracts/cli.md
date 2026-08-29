@@ -68,10 +68,10 @@ bazel-git-lfs search <keyword> [--json]
 
 **Output**: artifacts matching the keyword (by name).
 
-## Command: rewrite
+## Command: checkout
 
 ```
-bazel-git-lfs rewrite <project-dir> [--apply] [--json]
+bazel-git-lfs checkout <project-dir> [--apply] [--json]
 ```
 
 Rewrites Bazel `urls` from public to internal mirror URLs. **Dry-run by default**: prints proposed changes, modifies nothing. `--apply` writes changes to disk.

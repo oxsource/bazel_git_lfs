@@ -12,7 +12,7 @@
 
 ### Session 2026-08-28
 
-- Q: Scope of the `rewrite` command → A: `rewrite` included in V1 as a first-class command with a dry-run safety default
+- Q: Scope of the `checkout` command → A: `checkout` included in V1 as a first-class command with a dry-run safety default
 - Q: npm publishing target → A: public npm registry (npmjs.org)
 - Q: Phasing of future stages (V2/V3) → A: only brief roadmap outline of future stages now; full documents deferred until each stage is started
 
@@ -89,20 +89,20 @@ The user runs a **verify** command to check that artifacts stored in the mirror 
 
 ---
 
-### User Story 5 - Rewrite business project URLs to internal mirror URLs (Priority: P2)
+### User Story 5 - Checkout business project URLs to internal mirror URLs (Priority: P2)
 
-A user runs a **rewrite** command against a Bazel project. The tool rewrites the `urls` in `WORKSPACE`/`MODULE.bazel` from their original public URLs to the corresponding internal mirror URLs, so the project can build against the company mirror. By default it runs in a **dry-run** mode that only previews the proposed changes; an explicit flag is required to actually write to the files. The tool does not rewrite any URL that is not yet present in the mirror, and leaves the rest of the project untouched.
+A user runs a **checkout** command against a Bazel project. The tool rewrites the `urls` in `WORKSPACE`/`MODULE.bazel` from their original public URLs to the corresponding internal mirror URLs, so the project can build against the company mirror. By default it runs in a **dry-run** mode that only previews the proposed changes; an explicit flag is required to actually write to the files. The tool does not rewrite any URL that is not yet present in the mirror, and leaves the rest of the project untouched.
 
-**Why this priority**: Rewriting lets business projects consume the mirror, which is the payoff of mirroring. It is first-class in V1 but, because it mutates business files, it is gated behind a dry-run default and a confirmation flag.
+**Why this priority**: Checkout lets business projects consume the mirror, which is the payoff of mirroring. It is first-class in V1 but, because it mutates business files, it is gated behind a dry-run default and a confirmation flag.
 
-**Independent Test**: Run rewrite in dry-run against a fixture project and assert it prints the proposed URL changes without modifying files; run with the write flag and assert the files are updated to mirror URLs and nothing else changes.
+**Independent Test**: Run checkout in dry-run against a fixture project and assert it prints the proposed URL changes without modifying files; run with the write flag and assert the files are updated to mirror URLs and nothing else changes.
 
 **Acceptance Scenarios**:
 
-1. **Given** a Bazel project with an artifact already mirrored, **When** the user runs rewrite in dry-run mode, **Then** the tool shows the proposed URL replacement and does not modify the project.
-2. **Given** the same project, **When** the user runs rewrite with the write flag, **Then** the project URL is updated to the mirror URL.
-3. **Given** a project with a dependency that is not yet in the mirror, **When** the user runs rewrite, **Then** that dependency's URL is left unchanged.
-4. **Given** a project, **When** rewrite runs, **Then** nothing other than the targeted URL declarations is modified.
+1. **Given** a Bazel project with an artifact already mirrored, **When** the user runs checkout in dry-run mode, **Then** the tool shows the proposed URL replacement and does not modify the project.
+2. **Given** the same project, **When** the user runs checkout with the write flag, **Then** the project URL is updated to the mirror URL.
+3. **Given** a project with a dependency that is not yet in the mirror, **When** the user runs checkout, **Then** that dependency's URL is left unchanged.
+4. **Given** a project, **When** checkout runs, **Then** nothing other than the targeted URL declarations is modified.
 
 ---
 
@@ -164,10 +164,10 @@ The tool is distributed as a Node.js command-line utility published to the publi
 - **FR-009**: System MUST upload artifacts to a shared Git LFS mirror repository, updating a manifest that records source URL, SHA256, and mirror path for each artifact.
 - **FR-010**: System MUST provide a `verify` command that checks mirror artifacts against their SHA256.
 - **FR-011**: System MUST provide `list` and `search` commands to query the mirror inventory.
-- **FR-011a**: System MUST provide a `rewrite` command that rewrites Bazel project URLs to internal mirror URLs, running in a **dry-run mode by default** and requiring an explicit flag to write changes to disk.
+- **FR-011a**: System MUST provide a `checkout` command that rewrites Bazel project URLs to internal mirror URLs, running in a **dry-run mode by default** and requiring an explicit flag to write changes to disk.
 - **FR-011b**: System MUST NOT rewrite a dependency URL that is not yet present in the mirror, leaving it unchanged.
 - **FR-012**: System MUST abstract the artifact repository behind an interface so the mirror backend (currently Git LFS) can be replaced in the future without rewriting discovery or cache logic.
-- **FR-013**: System MUST NOT modify business Bazel projects during scan/sync; only the dedicated `rewrite` command (with an explicit write flag) modifies business projects.
+- **FR-013**: System MUST NOT modify business Bazel projects during scan/sync; only the dedicated `checkout` command (with an explicit write flag) modifies business projects.
 - **FR-014**: System MUST initialize local configuration via an `init` command. `init` is an interactive wizard (mirror repo URL, GitLab host, Git LFS settings) that saves a local profile tagged by a user-provided namespace; all config resolution is local, with no cloud config fetch in V1. Profiles live in a Maven-style global config directory under the user's home (e.g., `~/.bazel-git-lfs`), with one active profile used by default and overridable per-invocation via `--namespace`.
 - **FR-014a**: System MUST be published and distributed as a public npm package (npmjs.org), exposing a `bazel-git-lfs` command-line binary.
 - **FR-014b**: System MUST provide a documented, repeatable release process including versioning and publishing steps.
@@ -185,7 +185,7 @@ The tool is distributed as a Node.js command-line utility published to the publi
 
 The following stages are outlined at a high level only. Full design planning guides are not written yet; each stage will be specified and planned when started. The core model (dependency discovery, caching, content-addressed integrity, pluggable repository backend) is designed to carry forward across all stages.
 
-- **V1 (current spec)**: scan / sync / cache / verify / list / search / rewrite + init, distributed as a public npm package, mirroring into Git LFS on self-hosted GitLab.
+- **V1 (current spec)**: scan / sync / cache / verify / list / search / checkout + init, distributed as a public npm package, mirroring into Git LFS on self-hosted GitLab.
 - **V2 (later design planning guide)**: company artifact mirror service — HTTP mirror endpoint, permissions/access control, CI integration, higher concurrency, caching service; also adds mavenrepo-style cloud/remote configuration so `init` can resolve a full profile from a bare namespace (simplifying CLI input).
 - **V3 (later design planning guide)**: replace Git as artifact storage with object storage (S3 / MinIO / S3-compatible), Git retaining only metadata, configuration, scripts, and manifest.
 
@@ -205,7 +205,7 @@ The following stages are outlined at a high level only. Full design planning gui
 - The system `git` and `git-lfs` are available on the machines where the tool runs.
 - The declared SHA256 in Bazel files is authoritative for artifact integrity; the tool verifies against it and refuses mismatches.
 - First stage scope: Bazel remote HTTP dependencies only (`http_archive`/`http_file`); other registry types (Maven, npm, Docker) are out of scope.
-- Phase 1 does NOT modify business Bazel projects during scan/sync; URL rewriting (`rewrite`) is a V1 command but defaults to dry-run and only mutates files when an explicit write flag is given.
+- Phase 1 does NOT modify business Bazel projects during scan/sync; URL rewriting (`checkout`) is a V1 command but defaults to dry-run and only mutates files when an explicit write flag is given.
 - V1 is intentionally lightweight and does not aim to be a full artifact repository (no Maven/npm/Docker registry, no object storage, no web UI, no complex permission system).
 - Backend is implemented with a content-addressed approach keyed by SHA256; the Git LFS backend is the initial implementation only.
 - `init` resolves all configuration locally via an interactive wizard; mavenrepo-style cloud/remote configuration keyed by a bare namespace is deliberately deferred to V2 (see Future Stages).
