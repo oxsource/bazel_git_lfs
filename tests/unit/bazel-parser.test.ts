@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseBazelFile } from '@/discover/bazel-parser';
+import { parseBazelFile } from '@/inspect/bazel-parser';
 
 const fixturesDir = fileURLToPath(new URL('../fixtures/projects', import.meta.url));
 
@@ -58,5 +58,17 @@ describe('bazel-parser', () => {
     const result = parseBazelFile(fixture('module', 'MODULE.bazel'), 'MODULE.bazel');
     expect(result.dependencies).toHaveLength(2);
     expect(result.dependencies.map((d) => d.name).sort()).toEqual(['libdatachannel', 'some_patch']);
+  });
+
+  it('throws naming the file for unbalanced brackets', () => {
+    expect(() => parseBazelFile('http_archive(\n  name = "x",\n', 'WORKSPACE')).toThrow(
+      'Cannot parse Bazel file: WORKSPACE',
+    );
+  });
+
+  it('throws naming the file for an unterminated string', () => {
+    expect(() => parseBazelFile('http_archive(name = "unterminated)', 'WORKSPACE')).toThrow(
+      'Cannot parse Bazel file: WORKSPACE',
+    );
   });
 });

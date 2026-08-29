@@ -1,12 +1,12 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { ScanResult, emptyScanResult } from './models';
+import { InspectResult, emptyInspectResult } from './models';
 
 export const SNAPSHOT_FILE_NAME = 'dependencies.json';
 
 export interface SnapshotStore {
-  read(projectDir: string): Promise<ScanResult>;
-  write(projectDir: string, result: ScanResult): Promise<string>;
+  read(projectDir: string): Promise<InspectResult>;
+  write(projectDir: string, result: InspectResult): Promise<string>;
 }
 
 export class FsSnapshotStore implements SnapshotStore {
@@ -16,16 +16,16 @@ export class FsSnapshotStore implements SnapshotStore {
     return `${projectDir}/${this.configDirName}/${SNAPSHOT_FILE_NAME}`;
   }
 
-  async read(projectDir: string): Promise<ScanResult> {
+  async read(projectDir: string): Promise<InspectResult> {
     try {
       const raw = await readFile(this.snapshotPath(projectDir), 'utf8');
-      return JSON.parse(raw) as ScanResult;
+      return JSON.parse(raw) as InspectResult;
     } catch {
-      return emptyScanResult(projectDir);
+      return emptyInspectResult(projectDir);
     }
   }
 
-  async write(projectDir: string, result: ScanResult): Promise<string> {
+  async write(projectDir: string, result: InspectResult): Promise<string> {
     const path = this.snapshotPath(projectDir);
     const dir = dirname(path);
     await mkdir(dir, { recursive: true });

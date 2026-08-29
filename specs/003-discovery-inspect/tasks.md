@@ -8,6 +8,15 @@
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
+## Amendment (2026-08-29, post-implementation design session)
+
+The design was amended after initial implementation (see spec.md Clarifications Session 2):
+
+- The standalone `cache` command was **removed** — `inspect` persists the snapshot to `.bazel_git_lfs/dependencies.json` itself (atomic). T014a/T014b below were reworked into `runInspect`.
+- `inspect` takes **no project-dir argument** (current project only; extra args → usage error) and has **no `--json` flag** — JSON is the only output; errors are JSON error objects on stdout.
+- The not-initialized error is now `Not a valid bazel_git_lfs project: <dir>. Run "bazel-git-lfs init" first.`
+- The source layer was renamed `src/discover/` → `src/inspect/` (`scanner.ts` → `inspector.ts`, `scanProject` → `inspectProject`, `ScanResult` → `InspectResult`); earlier task texts below keep their original wording for history.
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
@@ -24,7 +33,7 @@
 
 **Purpose**: Add the discovery module skeleton and fixtures to the existing Stage 1 project
 
-- [x] T001 Create discovery module skeleton per plan.md (src/discover/, tests/fixtures/projects/, tests/fixtures/bin/) in the existing project
+- [x] T001 Create discovery module skeleton per plan.md (src/inspect/, tests/fixtures/projects/, tests/fixtures/bin/) in the existing project
 - [x] T002 Add fixture Bazel projects under tests/fixtures/projects/ (WORKSPACE with direct http_archive, multi-URL, WORKSPACE.bazel, MODULE.bazel, empty project, and a project with dependencies in a loaded `deps.bzl`)
 - [x] T003 [P] Add a mocked `bazel` binary under tests/fixtures/bin/ for hermetic query tests (per research decision 6)
 
@@ -38,12 +47,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [x] T004 Create Dependency and ScanResult types in src/discover/models.ts per data-model.md (name, urls, sha256, stripPrefix, sourceFile, resolved; projectDir, dependencies, warnings, filesScanned, queryUsed, queryExternalRepos, dependencyRelations)
-- [x] T005 Implement Starlark-aware extractor in src/discover/bazel-parser.ts (extract name/urls/sha256/stripPrefix from http_archive/http_file; single url and urls list; multiline; comments) per research decision 1
-- [x] T006 Implement scoped symbol table + `for`-loop/variable resolution in src/discover/bazel-parser.ts (assignments, `for VAR in LIST:` over list-of-dicts/tuples; unresolvable → mark `resolved: false` + warning) per research decision 2 (FR-010)
-- [x] T007 Implement `load()` following in src/discover/loader.ts (parse `load("//path:file.bzl", ...)` / `load("@repo//...", ...)`; recurse into `.bzl` files; cycle-bounded; missing/unreadable target → warning) per research decision 2a (FR-001a/FR-002a)
-- [x] T008 Implement Bazel query client in src/discover/bazel-query.ts (invoke system `bazel query` via child_process with timeout; parse external-repo set + dependency relations; unavailable/failure/timeout → return `null` cleanly) per research decision 2b (FR-011)
-- [x] T008a Implement dependency snapshot read/write in src/discover/snapshot.ts (write ScanResult to `.bazel_git_lfs/dependencies.json` atomically; read it back) per research decision 3a (FR-003a/FR-013)
+- [x] T004 Create Dependency and InspectResult types in src/inspect/models.ts per data-model.md (name, urls, sha256, stripPrefix, sourceFile, resolved; projectDir, dependencies, warnings, filesScanned, queryUsed, queryExternalRepos, dependencyRelations)
+- [x] T005 Implement Starlark-aware extractor in src/inspect/bazel-parser.ts (extract name/urls/sha256/stripPrefix from http_archive/http_file; single url and urls list; multiline; comments) per research decision 1
+- [x] T006 Implement scoped symbol table + `for`-loop/variable resolution in src/inspect/bazel-parser.ts (assignments, `for VAR in LIST:` over list-of-dicts/tuples; unresolvable → mark `resolved: false` + warning) per research decision 2 (FR-010)
+- [x] T007 Implement `load()` following in src/inspect/loader.ts (parse `load("//path:file.bzl", ...)` / `load("@repo//...", ...)`; recurse into `.bzl` files; cycle-bounded; missing/unreadable target → warning) per research decision 2a (FR-001a/FR-002a)
+- [x] T008 Implement Bazel query client in src/inspect/bazel-query.ts (invoke system `bazel query` via child_process with timeout; parse external-repo set + dependency relations; unavailable/failure/timeout → return `null` cleanly) per research decision 2b (FR-011)
+- [x] T008a Implement dependency snapshot read/write in src/inspect/snapshot.ts (write InspectResult to `.bazel_git_lfs/dependencies.json` atomically; read it back) per research decision 3a (FR-003a/FR-013)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -57,25 +66,25 @@
 
 ### Implementation for User Story 1
 
-- [x] T009 [US1] Implement project scanning orchestration in src/discover/scanner.ts (locate WORKSPACE/WORKSPACE.bazel/MODULE.bazel, load-follow, parse, merge; record filesScanned and sourceFile per dependency; collect warnings)
-- [x] T010 [US1] Integrate Bazel query cross-check into src/discover/scanner.ts (when query returns non-null, mark queryUsed, set queryExternalRepos + dependencyRelations; otherwise report query unavailability as a warning) per FR-011
+- [x] T009 [US1] Implement project inspection orchestration in src/inspect/inspector.ts (locate WORKSPACE/WORKSPACE.bazel/MODULE.bazel, load-follow, parse, merge; record filesScanned and sourceFile per dependency; collect warnings)
+- [x] T010 [US1] Integrate Bazel query cross-check into src/inspect/inspector.ts (when query returns non-null, mark queryUsed, set queryExternalRepos + dependencyRelations; otherwise report query unavailability as a warning) per FR-011
 - [x] T011 [US1] Implement the `inspect` command in src/cli/inspect.ts (init-check via Stage 1 config path helpers → error "Run `bazel-git-lfs init` first." if missing; project-dir arg defaulting to cwd; invoke scanner; render result) per FR-004/FR-007/FR-008
-- [x] T012 [US1] Replace the Stage 1 `scan` stub with the real `inspect` command in src/cli/index.ts (register with Commander, `--json` flag, exit-code handling) per contracts/cli.md
+- [x] T012 [US1] Replace the Stage 1 `scan` stub with the real `inspect` command in src/cli/index.ts (register with Commander, exit-code handling; amended: no args, no flags) per contracts/cli.md
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
 ---
 
-## Phase 4: User Story 2 - See inspect results in human-readable and machine-readable form (Priority: P2)
+## Phase 4: User Story 2 - Consume inspect results as structured JSON (Priority: P2)
 
-**Goal**: `inspect` outputs a readable listing by default and valid structured JSON with `--json`; empty result exits 0 (FR-005, FR-006)
+**Goal**: `inspect` prints valid structured JSON to stdout — the only output format (no `--json` flag, no human mode); empty result exits 0 (FR-005, FR-006)
 
-**Independent Test**: Run `inspect` with and without `--json` against a project with dependencies; assert the human form is readable and the JSON form is valid structured data with the same dependency set. Also assert an empty project returns an empty result with exit 0.
+**Independent Test**: Run `inspect` against a project with dependencies; assert stdout is valid JSON with the full dependency set and snapshot path. Also assert an empty project returns an empty result with exit 0.
 
 ### Implementation for User Story 2
 
-- [x] T013 [US2] Implement human-readable output rendering in src/cli/inspect.ts (per-line `<name>  sha256=...  <sourceFile>  <primary-url>` + count summary; empty → "No HTTP dependencies found." + exit 0) per contracts/cli.md
-- [x] T014 [US2] Implement `--json` output in src/cli/inspect.ts (structured `{ ok, projectDir, dependencies, warnings, filesScanned, queryUsed, queryExternalRepos, dependencyRelations }`) per contracts/cli.md
+- [x] T013 [US2] ~~Human-readable output rendering~~ — removed by amendment: JSON is the only output; the human renderer was deleted from src/cli/inspect.ts
+- [x] T014 [US2] Implement JSON output in src/cli/inspect.ts (structured `{ ok, projectDir, snapshotPath, dependencies, warnings, filesScanned, queryUsed, queryExternalRepos, dependencyRelations }`; errors as `{ ok: false, error }`; no `--json` flag) per contracts/cli.md
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -83,14 +92,14 @@
 
 ## Phase 5: User Story 3 - Persist inspect results for fast `list` reads (Priority: P2)
 
-**Goal**: the `cache` command writes the discovered dependency snapshot to `.bazel_git_lfs/dependencies.json` (atomic) so later `list`/query reads are fast; `inspect` stays strictly read-only (FR-003a, FR-013)
+**Goal**: `inspect` itself writes the discovered dependency snapshot to `.bazel_git_lfs/dependencies.json` (atomic) so later `list`/query reads are fast; no separate cache command (FR-003a, FR-013)
 
-**Independent Test**: Run the cache command against a fixture project; assert a snapshot file is created under `.bazel_git_lfs` with the discovered set, and that `inspect` alone creates no snapshot.
+**Independent Test**: Run `inspect` in a fixture project; assert a snapshot file is created under `.bazel_git_lfs` with the discovered set and `snapshotPath` appears in the JSON; re-running refreshes it (idempotent overwrite).
 
 ### Implementation for User Story 3
 
-- [ ] T014a [US3] Implement the `cache` command in src/cli/cache.ts (init-check; run discovery; write snapshot via discover/snapshot.ts; output confirmation or `{ ok, snapshotPath, dependencyCount }`) per contracts/cli.md
-- [ ] T014b [US3] Register the `cache` command in src/cli/index.ts (Commander, `--json`, exit-code handling) per contracts/cli.md
+- [x] T014a [US3] ~~Standalone `cache` command~~ — removed by amendment: snapshot persistence was merged into `runInspect` in src/cli/inspect.ts (init-check; run discovery; atomic write via inspect/snapshot.ts; `snapshotPath` in the JSON output)
+- [x] T014b [US3] ~~`cache` command registration~~ — removed by amendment: src/cli/index.ts registers `inspect` only (no args, no flags, `allowExcessArguments(false)`)
 
 **Checkpoint**: At this point, User Stories 1-3 should all work independently
 
@@ -100,11 +109,11 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T015 [P] Implement error handling for missing/unreadable project directory (exit 1, error to stderr) in src/cli/inspect.ts per FR-007
-- [ ] T016 [P] Implement error handling for unparsable Bazel files (exit 1, error naming the file) in src/discover/scanner.ts per FR-007
-- [ ] T017 Validate quickstart.md steps (init, inspect, inspect --json, cache, empty project) against the implemented CLI
-- [ ] T018 Run lint, build, and typecheck across the project; fix any issues
-- [ ] T019 Verify `bazel-git-lfs inspect --help` and `bazel-git-lfs --help` (inspect + cache listed, scan removed) and exit codes follow the contract
+- [x] T015 [P] Implement error handling for missing/unreadable project directory (exit 1, error to stderr) in src/cli/inspect.ts per FR-007
+- [x] T016 [P] Implement error handling for unparsable Bazel files (exit 1, error naming the file) in src/inspect/inspector.ts per FR-007
+- [x] T017 Validate quickstart.md steps (init, inspect JSON output, empty project, not-initialized error, usage errors) against the implemented CLI
+- [x] T018 Run lint, build, and typecheck across the project; fix any issues
+- [x] T019 Verify `bazel-git-lfs inspect --help` and `bazel-git-lfs --help` (inspect + cache listed, scan removed) and exit codes follow the contract
 
 ---
 
@@ -123,7 +132,7 @@
 
 - **User Story 1 (P1)**: Can start after Foundational (Phase 2) - depends on models/parser/loader/query (T004-T008); independently testable
 - **User Story 2 (P2)**: Depends on US1 (inspect command exists); output rendering is thin and independently testable
-- **User Story 3 (P2)**: Depends on US1 (discovery) + T008a (snapshot); cache command is thin and independently testable
+- **User Story 3 (P2)**: Depends on US1 (discovery) + T008a (snapshot); snapshot persistence inside `inspect` is thin and independently testable
 
 ### Within Each User Story
 
@@ -144,10 +153,10 @@
 
 ```bash
 # Launch foundational + first stories together:
-Task: "Implement Starlark parser in src/discover/bazel-parser.ts"
-Task: "Implement load() loader in src/discover/loader.ts"
-Task: "Implement Bazel query client in src/discover/bazel-query.ts"
-Task: "Implement dependency snapshot in src/discover/snapshot.ts"
+Task: "Implement Starlark parser in src/inspect/bazel-parser.ts"
+Task: "Implement load() loader in src/inspect/loader.ts"
+Task: "Implement Bazel query client in src/inspect/bazel-query.ts"
+Task: "Implement dependency snapshot in src/inspect/snapshot.ts"
 ```
 
 ---
@@ -166,8 +175,8 @@ Task: "Implement dependency snapshot in src/discover/snapshot.ts"
 
 1. Complete Setup + Foundational -> Foundation ready
 2. Add User Story 1 (inspect discovery) -> Test independently -> Demo
-3. Add User Story 2 (human + --json output) -> Test independently -> Demo
-4. Add User Story 3 (cache command) -> Test independently -> Demo
+3. Add User Story 2 (JSON output) -> Test independently -> Demo
+4. Add User Story 3 (snapshot persistence) -> Test independently -> Demo
 5. Add Polish (Phase 6) -> Release
 
 ---

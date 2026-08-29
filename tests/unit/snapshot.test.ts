@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { mkdtempSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FsSnapshotStore } from '@/discover/snapshot';
-import { ScanResult } from '@/discover/models';
+import { FsSnapshotStore } from '@/inspect/snapshot';
+import { InspectResult } from '@/inspect/models';
 
-function makeResult(projectDir: string): ScanResult {
+function makeResult(projectDir: string): InspectResult {
   return {
     projectDir,
     dependencies: [

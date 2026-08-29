@@ -17,7 +17,7 @@ The V1 requirements are split into **6 sequential stages**, each independently r
 | Stage | Name | Core focus | Requirement coverage |
 |-------|------|-----------|----------------------|
 | 1 | Foundation & Config | Project scaffold, CLI skeleton, `init` + profile/config management | FR-014, FR-016 |
-| 2 | Discovery | `inspect` — parse Bazel projects (read-only), extract HTTP deps; a cache command persists results for fast `list` | FR-001, FR-002, FR-003, FR-013 |
+| 2 | Discovery | `inspect` — parse Bazel projects, extract HTTP deps, persist snapshot to `.bazel_git_lfs/dependencies.json` (JSON-only output; current project only) | FR-001, FR-002, FR-003, FR-013 |
 | 3 | Mirroring Core | `sync` — download, verify, cache, upload to Git LFS, manifest | FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-012, FR-015 |
 | 4 | Mirror Consumption | `verify`, `list`, `search` — query & integrity-check the mirror | FR-010, FR-011 |
 | 5 | Business Project Rewrite | `rewrite` — point business projects at mirror URLs (dry-run default) | FR-011a, FR-011b, FR-013 |

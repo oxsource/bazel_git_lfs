@@ -1,19 +1,23 @@
 import { stat } from 'node:fs/promises';
 import { BazelLoader } from './loader';
 import { runBazelQuery } from './bazel-query';
-import { ScanResult, emptyScanResult } from './models';
+import { InspectResult, emptyInspectResult } from './models';
 
-export interface ScanOptions {
+export interface InspectProjectOptions {
   projectDir: string;
   useQuery?: boolean;
 }
 
-export async function scanProject(opts: ScanOptions): Promise<ScanResult> {
-  const result = emptyScanResult(opts.projectDir);
+export async function inspectProject(opts: InspectProjectOptions): Promise<InspectResult> {
+  const result = emptyInspectResult(opts.projectDir);
 
-  const dirExists = await pathExists(opts.projectDir);
-  if (!dirExists) {
-    throw new Error(`Project directory not found: ${opts.projectDir}`);
+  try {
+    await stat(opts.projectDir);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`Project directory not found: ${opts.projectDir}`);
+    }
+    throw new Error(`Project directory not readable: ${opts.projectDir}`);
   }
 
   const loader = new BazelLoader(opts.projectDir);
@@ -34,19 +38,10 @@ export async function scanProject(opts: ScanOptions): Promise<ScanResult> {
       result.queryExternalRepos = null;
       result.dependencyRelations = null;
       result.warnings.push(
-        'bazel query was not used: bazel binary unavailable or query failed; results are from file scanning only.',
+        'bazel query was not used: bazel binary unavailable or query failed; results are from file inspection only.',
       );
     }
   }
 
   return result;
-}
-
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await stat(path);
-    return true;
-  } catch {
-    return false;
-  }
 }

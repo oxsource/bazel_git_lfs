@@ -18,7 +18,7 @@
 | Task | Stage | Design Planning Guide (设计规划指导) |
 |------|-------|-------------------------------------|
 | T001 | S1 Foundation & Config | `#<design-planning-guide-link>` (待创建) |
-| T002 | S2 Discovery (`inspect`) | `#<design-planning-guide-link>` (待创建) |
+| T002 | S2 Discovery (`inspect`) | [plan.md](../003-discovery-inspect/plan.md) (设计规划指导) |
 | T003 | S3 Mirroring Core (`sync`) | `#<design-planning-guide-link>` (待创建) |
 | T004 | S4 Mirror Consumption (`verify`/`list`/`search`) | `#<design-planning-guide-link>` (待创建) |
 | T005 | S5 Business Project Rewrite (`rewrite`) | `#<design-planning-guide-link>` (待创建) |
@@ -42,7 +42,7 @@
 
 **Exit signal**: `inspect` returns the exact expected dependency set for fixture projects without side effects; the cache persists the result.
 
-- [ ] T002 [S2] Complete Discovery stage per [plan.md](./plan.md) Stage 2 → 设计规划指导: `#<design-planning-guide-link>` (待创建)
+- [x] T002 [S2] Complete Discovery stage per [plan.md](./plan.md) Stage 2 → 设计规划指导: [003-discovery-inspect/plan.md](../003-discovery-inspect/plan.md)
 
 ---
 

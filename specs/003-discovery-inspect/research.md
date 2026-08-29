@@ -42,17 +42,17 @@ Phase 0 research decisions resolving the technical unknowns for Stage 2.
 
 **Alternatives considered:** Precedence-based overwrite (hides information); skipping when both WORKSPACE and WORKSPACE.bazel exist (Bazel itself prefers WORKSPACE.bazel — but `inspect` should report what exists).
 
-## 3a. Dependency snapshot (cache)
+## 3a. Dependency snapshot
 
-**Decision**: The cache command runs the same discovery and writes the resulting `ScanResult` as a snapshot file under the project's `.bazel_git_lfs/dependencies.json`, written atomically (temp file + rename). `inspect` itself never writes (FR-003). Later `list`/query reads consume the snapshot for speed (FR-003a/FR-013).
+**Decision**: `inspect` writes the resulting `InspectResult` as a snapshot file under the project's `.bazel_git_lfs/dependencies.json`, written atomically (temp file + rename) on every run. There is no separate cache command. Later `list`/query reads consume the snapshot for speed (FR-003a/FR-013).
 
-**Rationale**: Per the clarification: keep `inspect` read-only and provide a dedicated cache command so `list` reads are fast. Atomic write prevents a partial/corrupt cache.
+**Rationale**: Per the latest clarification: a dedicated cache command is unnecessary ceremony — `inspect` runs after `init` and its result is exactly what `list` needs, so persisting it automatically removes a step with no downside. Atomic write prevents a partial/corrupt snapshot.
 
-**Alternatives considered:** `inspect` writing automatically (violates the read-only guarantee — rejected per clarification); no cache at all (every `list` re-inspects — slow). Chosen: separate cache command + atomic snapshot.
+**Alternatives considered:** a separate cache command (rejected — extra step, no isolation benefit, since the snapshot is the only write and lives in the tool-owned `.bazel_git_lfs` area); no persistence at all (every `list` re-inspects — slow). Chosen: `inspect` persists automatically + atomic write.
 
 ## 4. `init` requirement check
 
-**Decision**: `inspect`/cache check for the initialized config area using the Stage 1 config-directory path helpers (project-local `.bazel_git_lfs`). If missing, they error with "Run `bazel-git-lfs init` first." They do **not** require a mirror profile.
+**Decision**: `inspect` checks for the initialized config area using the Stage 1 config-directory path helpers (project-local `.bazel_git_lfs`). If missing, it reports "Not a valid bazel_git_lfs project: <dir>. Run `bazel-git-lfs init` first." It does **not** require a mirror profile.
 
 **Rationale**: FR-008 + SC-006. Reuses Stage 1 infra (G4). No profile needed because discovery is config-independent beyond the init check (assumption).
 
@@ -60,7 +60,7 @@ Phase 0 research decisions resolving the technical unknowns for Stage 2.
 
 ## 5. Output & exit conventions
 
-**Decision**: Default human output lists dependencies; `--json` prints structured `{ ok, projectDir, dependencies, warnings, filesScanned, queryUsed, ... }`; errors to stderr with exit codes 0 (success incl. empty), 1 (failure), 2 (usage). Reuses Stage 1 `format` helpers.
+**Decision**: JSON is the only output format: structured `{ ok, projectDir, snapshotPath, dependencies, warnings, filesScanned, queryUsed, ... }` printed to stdout; errors are JSON `{ ok: false, error }` on stdout with exit codes 0 (success incl. empty), 1 (failure), 2 (usage). No `--json` flag — there is nothing to switch away from. Reuses Stage 1 `format` helpers.
 
 **Rationale**: FR-005/FR-006/FR-007 + contracts consistency with the Stage 1 CLI.
 
@@ -68,7 +68,7 @@ Phase 0 research decisions resolving the technical unknowns for Stage 2.
 
 ## 6. Testing strategy
 
-**Decision**: Vitest. Unit tests for the parser (literal, multiline, comments, `urls` list, `for`-loop over list-of-dicts/tuples, unresolvable loop), the loader (load-following into `.bzl`, cycle bounds, missing-file warnings), the scanner (file discovery, merge, query cross-check), and the snapshot (read/write, atomicity). Query behavior is tested with a **mocked `bazel` binary** in `tests/fixtures/bin/`. Integration tests run `inspect`/cache end-to-end against `tests/fixtures/projects/` with a temp config area. Contract tests assert `inspect`/cache human/`--json` output and exit codes.
+**Decision**: Vitest. Unit tests for the parser (literal, multiline, comments, `urls` list, `for`-loop over list-of-dicts/tuples, unresolvable loop), the loader (load-following into `.bzl`, cycle bounds, missing-file warnings), the inspector (file discovery, merge, query cross-check), and the snapshot (read/write, atomicity). Query behavior is tested with a **mocked `bazel` binary** in `tests/fixtures/bin/`. Integration tests run `inspect` end-to-end against `tests/fixtures/projects/` with a temp config area. Contract tests assert the CLI command surface and exit codes.
 
 **Rationale**: Fixtures give deterministic, reproducible discovery tests (SC-002/SC-007). Mocking `bazel` makes query tests hermetic and covers both the present and absent/fallback paths. Matches the Stage 1 testing approach.
 

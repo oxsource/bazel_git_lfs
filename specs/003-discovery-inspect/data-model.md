@@ -11,11 +11,11 @@ A remote HTTP dependency discovered in a Bazel project.
 - `sha256` (string | null) — Bazel-declared integrity hash. *Validation: when present, must be a 64-char hex string; absence is reported (not blocking), matching the parent guide.*
 - `stripPrefix` (string | null) — optional `strip_prefix` metadata.
 - `sourceFile` (string) — which file declared it: an entry file (`WORKSPACE`, `WORKSPACE.bazel`, `MODULE.bazel`) or a loaded `.bzl` file (relative path).
-- `resolved` (boolean) — whether this record was resolved from literal arguments (`true`) or reported from an unresolvable loop/variable declaration (`false`; see Scan Result warnings).
+- `resolved` (boolean) — whether this record was resolved from literal arguments (`true`) or reported from an unresolvable loop/variable declaration (`false`; see Inspect Result warnings).
 
 **Identity / uniqueness**: A dependency is identified by `name` within a project; `sourceFile` disambiguates duplicates across files. Content identity (by sha256) is a later-stage concern.
 
-## Entity: Scan Result
+## Entity: Inspect Result
 
 The outcome of inspecting one project.
 
@@ -27,19 +27,19 @@ The outcome of inspecting one project.
 - `queryExternalRepos` (string[] | null) — the authoritative set of external repositories from `query` when used (identifies "actually used" vs merely declared); `null` when query was unavailable/failed.
 - `dependencyRelations` (Record<string, string[]> | null) — dependency relationships surfaced by `query` when used; `null` otherwise.
 
-## Entity: Dependency Snapshot (cache)
+## Entity: Dependency Snapshot
 
-The persisted form of a Scan Result, stored under the project's `.bazel_git_lfs` (e.g., `dependencies.json`) by the cache command and read by later `list`/query reads.
+The persisted form of an Inspect Result, stored under the project's `.bazel_git_lfs/dependencies.json` by `inspect` and read by later `list`/query reads.
 
-- Contents: the full Scan Result (projectDir, dependencies, warnings, filesScanned, query fields).
-- Written atomically (temp file + rename) by the cache command (FR-013); refreshed/overwritten on re-run.
-- `inspect` NEVER writes a snapshot — the cache command is the only writer (FR-003/FR-003a).
+- Contents: the full Inspect Result (projectDir, dependencies, warnings, filesScanned, query fields).
+- Written atomically (temp file + rename) by `inspect` (FR-013); refreshed/overwritten on re-run.
+- `inspect` is the only writer of the snapshot; it writes nothing else to the project (FR-003/FR-003a).
 
 ## Relationships
 
-- A **Scan Result** contains zero or more **Dependencies**.
+- An **Inspect Result** contains zero or more **Dependencies**.
 - A **Dependency** originates from exactly one file (its `sourceFile` — an entry file or a loaded `.bzl` file).
-- A **Dependency** may carry unresolved attributes captured in **Scan Result warnings** (rather than fabricating values).
-- The **Scan Result** optionally includes the **Bazel-query authoritative external-repo set** and **dependency relations**, cross-checking the file-scanning results (FR-011).
-- A **Dependency Snapshot** is a persisted **Scan Result**; later stages read it for fast `list`/query without re-inspecting (FR-003a).
-- Producing a **Scan Result** has no side effects (strictly read-only, FR-003) and does not require a mirror profile; only persisting it (cache command) writes to `.bazel_git_lfs`.
+- A **Dependency** may carry unresolved attributes captured in **Inspect Result warnings** (rather than fabricating values).
+- The **Inspect Result** optionally includes the **Bazel-query authoritative external-repo set** and **dependency relations**, cross-checking the file-inspection results (FR-011).
+- A **Dependency Snapshot** is a persisted **Inspect Result**; later stages read it for fast `list`/query without re-inspecting (FR-003a).
+- Producing an **Inspect Result** does not require a mirror profile; persisting it writes only to the tool-owned `.bazel_git_lfs` area, never business source files.

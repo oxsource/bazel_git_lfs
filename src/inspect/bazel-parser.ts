@@ -10,7 +10,12 @@ const RULE_NAMES = new Set(['http_archive', 'http_file']);
 
 export function parseBazelFile(content: string, sourceFile: string): ParsedFile {
   const cleaned = stripComments(content);
-  const statements = splitStatements(cleaned);
+  let statements;
+  try {
+    statements = splitStatements(cleaned);
+  } catch {
+    throw new Error(`Cannot parse Bazel file: ${sourceFile}`);
+  }
 
   const deps: Dependency[] = [];
   const warnings: string[] = [];
@@ -282,6 +287,9 @@ function splitStatements(content: string): { text: string; indent: number }[] {
       continue;
     }
     current += ch;
+  }
+  if (depth !== 0 || inString !== null) {
+    throw new Error('unbalanced brackets or unterminated string');
   }
   flush();
   return statements;

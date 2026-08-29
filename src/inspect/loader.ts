@@ -42,8 +42,11 @@ export class BazelLoader {
     let content: string;
     try {
       content = await readFile(absPath, 'utf8');
-    } catch {
-      return { dependencies: [], warnings: [], filesScanned: [] };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return { dependencies: [], warnings: [], filesScanned: [] };
+      }
+      throw new Error(`Cannot read Bazel file: ${displayName}`);
     }
 
     const parsed = parseBazelFile(content, displayName);

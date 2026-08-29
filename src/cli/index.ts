@@ -30,10 +30,11 @@ export function buildProgram(deps: CliDeps = {}): Command {
   program
     .name('bazel-git-lfs')
     .description(
-      'Discover, cache, and mirror Bazel remote HTTP dependencies into a shared Git LFS repository',
+      'Discover and mirror Bazel remote HTTP dependencies into a shared Git LFS repository',
     )
     .version(VERSION)
-    .exitOverride();
+    .exitOverride()
+    .configureOutput({ writeErr: () => {} });
 
   program
     .command('init')
@@ -48,15 +49,12 @@ export function buildProgram(deps: CliDeps = {}): Command {
 
   program
     .command('inspect')
-    .description('Read-only discovery of a Bazel project\u2019s remote HTTP dependencies')
-    .argument('[project-dir]', 'project directory (default: current directory)')
-    .option('--json', 'output machine-readable JSON')
-    .action(async (projectDir: string | undefined, options: OutputOptions) => {
-      const code = await runInspect({
-        json: Boolean(options.json),
-        cwd,
-        projectDir,
-      });
+    .description(
+      'Discover the current project\u2019s remote HTTP dependencies and persist the snapshot (JSON)',
+    )
+    .allowExcessArguments(false)
+    .action(async () => {
+      const code = await runInspect({ cwd });
       if (code !== 0) {
         process.exitCode = code;
       }
@@ -220,7 +218,8 @@ export function run(argv: string[]): void {
     if (error.code === 'commander.helpDisplayed' || error.code === 'commander.version') {
       return;
     }
-    printUsageError(error.message ?? 'Unknown error');
+    const message = (error.message ?? 'Unknown error').replace(/^error: /, '');
+    printUsageError(message);
   }
 }
 

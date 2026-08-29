@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
-import { BazelLoader } from '@/discover/loader';
+import { BazelLoader } from '@/inspect/loader';
 
 const fixturesDir = fileURLToPath(new URL('../fixtures/projects', import.meta.url));
 

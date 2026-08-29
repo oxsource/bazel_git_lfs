@@ -7,7 +7,7 @@ export interface Dependency {
   resolved: boolean;
 }
 
-export interface ScanResult {
+export interface InspectResult {
   projectDir: string;
   dependencies: Dependency[];
   warnings: string[];
@@ -17,7 +17,7 @@ export interface ScanResult {
   dependencyRelations: Record<string, string[]> | null;
 }
 
-export function emptyScanResult(projectDir: string): ScanResult {
+export function emptyInspectResult(projectDir: string): InspectResult {
   return {
     projectDir,
     dependencies: [],
