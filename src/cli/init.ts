@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { projectConfigDir, CONFIG_DIR_NAME } from '@/config/paths';
 import { printResult, printError, EXIT_OK, EXIT_ERROR, OutputOptions } from '@/cli/format';
 import { readCheckoutState } from '@/mirror/checkout';
+import { RESERVED_ALIASES } from '@/mirror/alias';
+import { COMMANDS, TOOL_NAME, FILES } from '@/config/constants';
 
 const GITIGNORE_ENTRY = '.bazel_git_lfs/';
 
@@ -11,13 +13,13 @@ const PRE_COMMIT_HOOK = `#!/bin/sh
 # bazel-git-lfs pre-commit hook: auto-restore URLs to original source before commit
 set -e
 PROJECT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-if [ -f "$PROJECT_DIR/.bazel_git_lfs/checkout-state.json" ]; then
+if [ -f "$PROJECT_DIR/${CONFIG_DIR_NAME}/${FILES.CHECKOUT_STATE}" ]; then
   echo "bazel-git-lfs: detected non-default checkout, restoring URLs..."
-  if command -v bazel-git-lfs > /dev/null 2>&1; then
-    bazel-git-lfs checkout default
+  if command -v ${TOOL_NAME} > /dev/null 2>&1; then
+    ${TOOL_NAME} checkout ${RESERVED_ALIASES.DEFAULT}
     echo "bazel-git-lfs: URLs restored to original source before commit."
   else
-    echo "bazel-git-lfs: warning - 'bazel-git-lfs' command not found, skipping auto-restore" >&2
+    echo "bazel-git-lfs: warning - '${TOOL_NAME}' command not found, skipping auto-restore" >&2
   fi
 fi
 `;
@@ -46,7 +48,7 @@ export async function runInit(opts: InitOptions): Promise<number> {
 
   const state = await readCheckoutState(opts.cwd);
   if (state) {
-    warnings.push(`Non-default checkout detected (alias: "${state.alias}"). Run "bazel-git-lfs checkout default" to restore original URLs before committing.`);
+    warnings.push(`Non-default checkout detected (alias: "${state.alias}"). Run "${TOOL_NAME} ${COMMANDS.CHECKOUT} ${RESERVED_ALIASES.DEFAULT}" to restore original URLs before committing.`);
   }
 
   const result: Record<string, unknown> = { ok: true, configPath: dir, message: `Initialized config area at ${dir}` };

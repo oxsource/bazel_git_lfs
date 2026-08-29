@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join, dirname, normalize, isAbsolute } from 'node:path';
 import { parseBazelFile } from './bazel-parser';
 import { Dependency } from './models';
+import { BAZEL_FILES } from '@/config/constants';
 
 export interface LoadedFileResult {
   dependencies: Dependency[];
@@ -15,7 +16,7 @@ export class BazelLoader {
   constructor(private readonly projectDir: string) {}
 
   async loadEntryFiles(): Promise<LoadedFileResult> {
-    const entryFiles = ['WORKSPACE', 'WORKSPACE.bazel', 'MODULE.bazel'];
+    const entryFiles = [...BAZEL_FILES];
     const deps: Dependency[] = [];
     const warnings: string[] = [];
     const filesScanned: string[] = [];

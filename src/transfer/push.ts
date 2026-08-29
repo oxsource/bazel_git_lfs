@@ -10,10 +10,11 @@ import type { ArtifactRepository, UploadObject } from '@/mirror/repository';
 import { GitLfsRepository } from '@/mirror/repository';
 import type { PerDependencyResult, PushSummary } from '@/objects/models';
 import { MissingSnapshotError } from '@/transfer/fetch';
+import { COMMANDS, TOOL_NAME, COMMIT_MESSAGES } from '@/config/constants';
 
 export interface PushCommandResult {
   ok: boolean;
-  command: 'push';
+  command: typeof COMMANDS.PUSH;
   projectDir: string;
   remote: RemoteInfo;
   /** HEAD commit of the mirror after the push; null when nothing changed. */
@@ -85,7 +86,7 @@ export async function runPush(
         merged,
         pending.length > 0
           ? `bazel-git-lfs: mirror ${pending.length} object(s)`
-          : 'bazel-git-lfs: update manifest',
+          : COMMIT_MESSAGES.UPDATE_MANIFEST,
       );
       commit = outcome.commit;
       pushed = outcome.pushed;
@@ -103,7 +104,7 @@ export async function runPush(
       }
       return {
         ok: false,
-        command: 'push',
+        command: COMMANDS.PUSH,
         projectDir,
         remote: opts.remote,
         commit: null,
@@ -120,7 +121,7 @@ export async function runPush(
   const ok = summary.failed === 0;
   return {
     ok,
-    command: 'push',
+    command: COMMANDS.PUSH,
     projectDir,
     remote: opts.remote,
     commit,
@@ -176,7 +177,7 @@ async function classify(
       result: {
         ...base,
         status: 'missing-local',
-        message: 'object not present locally; run "bazel-git-lfs fetch" first',
+        message: 'object not present locally; run "' + TOOL_NAME + ' ' + COMMANDS.FETCH + '" first',
       },
     };
   }

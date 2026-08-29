@@ -1,4 +1,5 @@
 import { ConfigError, ProfileStore, ConfigFile } from '@/config/store';
+import { COMMANDS, REMOTE_SUBCOMMANDS, TOOL_NAME } from '@/config/constants';
 
 export interface ResolveOptions {
   cwd: string;
@@ -41,7 +42,7 @@ export class ConfigResolver {
     const candidateAlias = localConfig.active ?? globalConfig.active;
     if (candidateAlias === null) {
       throw new ConfigError(
-        'No mirror configured. Run "bazel-git-lfs init" and "bazel-git-lfs remote add" first.',
+        `No mirror configured. Run "${TOOL_NAME} ${COMMANDS.INIT}" and "${TOOL_NAME} ${COMMANDS.REMOTE} ${REMOTE_SUBCOMMANDS.ADD}" first.`,
       );
     }
 
@@ -77,7 +78,7 @@ export class ConfigResolver {
     const candidateAlias = localConfig.active ?? globalConfig.active;
     if (candidateAlias === null) {
       throw new ConfigError(
-        'No mirror configured. Run "bazel-git-lfs init" and "bazel-git-lfs remote add" first.',
+        `No mirror configured. Run "${TOOL_NAME} ${COMMANDS.INIT}" and "${TOOL_NAME} ${COMMANDS.REMOTE} ${REMOTE_SUBCOMMANDS.ADD}" first.`,
       );
     }
 

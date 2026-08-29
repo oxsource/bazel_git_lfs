@@ -8,6 +8,7 @@ import { runPushCommand } from '@/cli/push';
 import { runStatusCommand } from '@/cli/status';
 import { runCleanCommand } from '@/cli/clean';
 import { runCheckoutCommand } from '@/cli/checkout';
+import { RESERVED_ALIASES } from '@/mirror/alias';
 import {
   runRemoteAdd,
   runRemoteSetDefault,
@@ -18,6 +19,7 @@ import {
   runRemoteAliasRemove,
 } from '@/cli/remote';
 import { printUsageError, OutputOptions } from '@/cli/format';
+import { COMMANDS, REMOTE_SUBCOMMANDS, ALIAS_SUBCOMMANDS, TOOL_NAME } from '@/config/constants';
 
 const VERSION: string = __BGL_VERSION__;
 
@@ -34,7 +36,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
   const env = deps.env ?? process.env;
 
   program
-    .name('bazel-git-lfs')
+    .name(TOOL_NAME)
     .description(
       'Discover and mirror Bazel remote HTTP dependencies into a shared Git LFS repository',
     )
@@ -43,7 +45,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .configureOutput({ writeErr: () => {} });
 
   program
-    .command('init')
+    .command(COMMANDS.INIT)
     .description('Initialize a non-versioned .bazel_git_lfs config area in the current project')
     .option('--json', 'output machine-readable JSON')
     .action(async (options: OutputOptions) => {
@@ -51,7 +53,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     });
 
   program
-    .command('inspect')
+    .command(COMMANDS.INSPECT)
     .description(
       'Discover the current project\u2019s remote HTTP dependencies and persist the snapshot (JSON)',
     )
@@ -61,7 +63,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     });
 
   program
-    .command('fetch')
+    .command(COMMANDS.FETCH)
     .description(
       'Download snapshot dependencies from their source URLs into the local objects store (JSON)',
     )
@@ -71,7 +73,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     });
 
   program
-    .command('push')
+    .command(COMMANDS.PUSH)
     .description(
       'Upload local objects to the configured Git LFS mirror, update the manifest, commit and push (JSON)',
     )
@@ -81,7 +83,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     });
 
   program
-    .command('pull')
+    .command(COMMANDS.PULL)
     .description(
       'Transfer snapshot dependencies from the configured Git LFS mirror into the local objects store (JSON)',
     )
@@ -91,7 +93,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     });
 
   program
-    .command('status')
+    .command(COMMANDS.STATUS)
     .description(
       'Check every mirrored artifact\u2019s SHA256 against the manifest and report valid/corrupt/missing (JSON)',
     )
@@ -109,7 +111,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     });
 
   program
-    .command('clean')
+    .command(COMMANDS.CLEAN)
     .description(
       'Remove local objects store, mirror working clone, and snapshot; preserve config (JSON)',
     )
@@ -119,7 +121,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     });
 
   program
-    .command('checkout')
+    .command(COMMANDS.CHECKOUT)
     .description(
       'Switch dependency URLs between original, local, or remote mirror sources based on the alias (JSON)',
     )
@@ -129,12 +131,12 @@ export function buildProgram(deps: CliDeps = {}): Command {
       process.exitCode = await runCheckoutCommand({ cwd, alias });
     });
 
-  const remote = program.command('remote').description('Manage mirror-repository profiles');
+  const remote = program.command(COMMANDS.REMOTE).description('Manage mirror-repository profiles');
   remote
-    .command('add')
+    .command(REMOTE_SUBCOMMANDS.ADD)
     .description('Add or update a mirror profile')
     .option('--global', 'write to the global (user home) config instead of project-local')
-    .option('--alias <name>', `profile alias (default: ${'default'})`)
+    .option('--alias <name>', `profile alias (default: ${RESERVED_ALIASES.DEFAULT})`)
     .option('--url <url>', 'mirror repository URL (may be @alias)')
     .option('--json', 'output machine-readable JSON')
     .action(async (options: RemoteAddCliOptions) => {
@@ -150,7 +152,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     });
 
   remote
-    .command('set-default')
+    .command(REMOTE_SUBCOMMANDS.SET_DEFAULT)
     .description('Set the active default profile in the selected scope')
     .argument('<alias>', 'profile alias')
     .option('--global', 'target the global (user home) config')
@@ -167,7 +169,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     });
 
   remote
-    .command('remove')
+    .command(REMOTE_SUBCOMMANDS.REMOVE)
     .description('Remove a mirror profile from the selected scope')
     .argument('<alias>', 'profile alias')
     .option('--global', 'target the global (user home) config')
@@ -184,7 +186,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     });
 
   remote
-    .command('list')
+    .command(REMOTE_SUBCOMMANDS.LIST)
     .description('List mirror profiles (project-local + global, or with --global only global)')
     .option('--global', 'list only the global (user home) config')
     .option('--effective', 'show the merged, actually-in-effect profile')
@@ -200,9 +202,9 @@ export function buildProgram(deps: CliDeps = {}): Command {
       process.exitCode = code;
     });
 
-  const alias = remote.command('alias').description('Manage the global mirror URL alias table');
+  const alias = remote.command(REMOTE_SUBCOMMANDS.ALIAS).description('Manage the global mirror URL alias table');
   alias
-    .command('add')
+    .command(ALIAS_SUBCOMMANDS.ADD)
     .description('Add or update a global mirror alias')
     .argument('<name>', 'alias name')
     .argument('<url>', 'mirror repository URL')
@@ -212,7 +214,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
       process.exitCode = code;
     });
   alias
-    .command('list')
+    .command(ALIAS_SUBCOMMANDS.LIST)
     .description('List all global mirror aliases')
     .option('--json', 'output machine-readable JSON')
     .action(async (options: OutputOptions) => {
@@ -220,7 +222,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
       process.exitCode = code;
     });
   alias
-    .command('remove')
+    .command(ALIAS_SUBCOMMANDS.REMOVE)
     .description('Remove a global mirror alias')
     .argument('<name>', 'alias name')
     .option('--json', 'output machine-readable JSON')

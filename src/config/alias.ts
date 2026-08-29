@@ -1,4 +1,5 @@
 import { ConfigFile, ConfigError } from '@/config/store';
+import { COMMANDS, REMOTE_SUBCOMMANDS, ALIAS_SUBCOMMANDS, TOOL_NAME } from '@/config/constants';
 
 const ALIAS_TOKEN = '@';
 
@@ -43,7 +44,7 @@ export class FsAliasManager implements AliasManager {
     const resolved = config.aliases[name];
     if (resolved === undefined) {
       throw new ConfigError(
-        `Unknown mirror alias "${name}". Define it first with "bazel-git-lfs remote alias add ${name} <url>".`,
+        `Unknown mirror alias "${name}". Define it first with "${TOOL_NAME} ${COMMANDS.REMOTE} ${REMOTE_SUBCOMMANDS.ALIAS} ${ALIAS_SUBCOMMANDS.ADD} ${name} <url>".`,
       );
     }
     return { url: resolved, viaAlias: name };

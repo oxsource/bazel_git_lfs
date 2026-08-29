@@ -6,6 +6,7 @@ import { GitLfsRepository } from '@/mirror/repository';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CONFIG_DIR_NAME } from '@/config/paths';
+import { COMMANDS, BAZEL_FILES, DIRS } from '@/config/constants';
 
 export interface CheckoutCliOptions {
   cwd: string;
@@ -38,7 +39,7 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
     manifest = undefined;
   }
 
-  const bazelFiles = ['WORKSPACE', 'WORKSPACE.bazel', 'MODULE.bazel'];
+  const bazelFiles = BAZEL_FILES;
 
   const result = await runCheckoutScan({
     alias,
@@ -49,7 +50,7 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
         return { type: 'original', baseUrl: '' };
       }
       if (resolved === RESERVED_ALIASES.LOCAL) {
-        return { type: 'local', baseUrl: `file://${join(projectDir, CONFIG_DIR_NAME, 'objects')}` };
+        return { type: 'local', baseUrl: `file://${join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS)}` };
       }
       const profile = await resolveDefaultRemote(projectDir);
       if (!profile.ok) {
@@ -78,7 +79,7 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
 
   const output = {
     ok: result.ok,
-    command: 'checkout',
+    command: COMMANDS.CHECKOUT,
     alias: result.alias,
     target: result.target,
     changes: result.changes,

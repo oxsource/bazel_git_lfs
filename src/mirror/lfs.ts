@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { GIT } from '@/config/constants';
 
 const execFileAsync = promisify(execFile);
 
@@ -80,7 +81,7 @@ export class GitLfs {
     return this.git(['clone', url, dest], { env: { GIT_LFS_SKIP_SMUDGE: '1' }, cwd });
   }
 
-  async fetch(remote = 'origin'): Promise<GitResult> {
+  async fetch(remote = GIT.DEFAULT_REMOTE): Promise<GitResult> {
     return this.git(['fetch', remote]);
   }
 
@@ -96,7 +97,7 @@ export class GitLfs {
   }
 
   /** Materialize the given object paths from the LFS store. */
-  async lfsPullInclude(paths: string[], remote = 'origin'): Promise<GitResult> {
+  async lfsPullInclude(paths: string[], remote = GIT.DEFAULT_REMOTE): Promise<GitResult> {
     return this.lfs(['pull', remote, '--include', paths.join(',')]);
   }
 
@@ -114,19 +115,19 @@ export class GitLfs {
     return this.git(['commit', '-m', message]);
   }
 
-  async pullRebase(remote = 'origin', branch?: string): Promise<GitResult> {
+  async pullRebase(remote = GIT.DEFAULT_REMOTE, branch?: string): Promise<GitResult> {
     const args = branch ? ['pull', '--rebase', remote, branch] : ['pull', '--rebase'];
     return this.git(args);
   }
 
   /** True when the remote has a head branch with this name (ls-remote). */
-  async remoteBranchExists(branch: string, remote = 'origin'): Promise<boolean> {
+  async remoteBranchExists(branch: string, remote = GIT.DEFAULT_REMOTE): Promise<boolean> {
     const result = await this.git(['ls-remote', '--heads', remote, `refs/heads/${branch}`]);
     return result.status === 0 && result.stdout.trim().length > 0;
   }
 
   async push(refspec?: string): Promise<GitResult> {
-    return refspec ? this.git(['push', 'origin', refspec]) : this.git(['push']);
+    return refspec ? this.git(['push', GIT.DEFAULT_REMOTE, refspec]) : this.git(['push']);
   }
 
   /** HEAD commit id, or null when the clone has no commits. */

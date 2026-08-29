@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { CONFIG_DIR_NAME } from '@/config/paths';
 import { checkInitialized } from '@/cli/common';
 import { printResult, EXIT_OK, EXIT_ERROR } from '@/cli/format';
+import { COMMANDS, DIRS } from '@/config/constants';
 
 export interface CleanCliOptions {
   cwd: string;
@@ -10,7 +11,7 @@ export interface CleanCliOptions {
 
 export interface CleanResult {
   ok: boolean;
-  command: 'clean';
+  command: typeof COMMANDS.CLEAN;
   removed: {
     objects: boolean;
     mirror: boolean;
@@ -22,13 +23,13 @@ export async function runClean(projectDir: string): Promise<CleanResult> {
   const bglDir = join(projectDir, CONFIG_DIR_NAME);
   const removed = { objects: false, mirror: false, snapshot: false };
 
-  const objectsDir = join(bglDir, 'objects');
+  const objectsDir = join(bglDir, DIRS.OBJECTS);
   if (existsSync(objectsDir)) {
     rmSync(objectsDir, { recursive: true, force: true });
     removed.objects = true;
   }
 
-  const mirrorDir = join(bglDir, 'mirror');
+  const mirrorDir = join(bglDir, DIRS.MIRROR);
   if (existsSync(mirrorDir)) {
     rmSync(mirrorDir, { recursive: true, force: true });
     removed.mirror = true;
@@ -40,7 +41,7 @@ export async function runClean(projectDir: string): Promise<CleanResult> {
     removed.snapshot = true;
   }
 
-  return { ok: true, command: 'clean', removed };
+  return { ok: true, command: COMMANDS.CLEAN, removed };
 }
 
 export async function runCleanCommand(opts: CleanCliOptions): Promise<number> {

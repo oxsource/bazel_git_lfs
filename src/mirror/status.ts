@@ -1,4 +1,5 @@
 import type { MirrorManifest, ManifestEntry } from '@/mirror/models';
+import { COMMANDS } from '@/config/constants';
 
 export interface StatusResult {
   sha256: string;
@@ -24,7 +25,7 @@ export interface StatusSummary {
 
 export interface StatusOutput {
   ok: boolean;
-  command: 'status';
+  command: typeof COMMANDS.STATUS;
   results: StatusResult[];
   summary: StatusSummary;
   filters: StatusFilters | null;
@@ -113,7 +114,7 @@ export async function runStatusScan(
       }
       return {
         ok: false,
-        command: 'status',
+        command: COMMANDS.STATUS,
         results,
         summary,
         filters: activeFilters(filters),
@@ -149,7 +150,7 @@ export async function runStatusScan(
 
   return {
     ok,
-    command: 'status',
+    command: COMMANDS.STATUS,
     results,
     summary,
     filters: activeFilters(filters),

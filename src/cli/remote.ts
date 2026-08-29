@@ -12,6 +12,7 @@ import {
   EXIT_ERROR,
   EXIT_USAGE,
 } from '@/cli/format';
+import { COMMANDS, REMOTE_SUBCOMMANDS, TOOL_NAME } from '@/config/constants';
 
 export interface RemoteAddOptions extends OutputOptions {
   cwd: string;
@@ -331,7 +332,7 @@ export async function runRemoteList(opts: RemoteListOptions): Promise<number> {
   } else {
     if (entries.length === 0) {
       process.stdout.write(
-        'No mirror profiles configured. Run "bazel-git-lfs remote add" first.\n',
+        'No mirror profiles configured. Run "' + TOOL_NAME + ' ' + COMMANDS.REMOTE + ' ' + REMOTE_SUBCOMMANDS.ADD + '" first.\n',
       );
       return EXIT_OK;
     }

@@ -4,6 +4,7 @@ import { InspectResult } from '@/inspect/models';
 import { FsSnapshotStore } from '@/inspect/snapshot';
 import { printResult, EXIT_OK, EXIT_ERROR } from '@/cli/format';
 import { existsSync } from 'node:fs';
+import { COMMANDS, TOOL_NAME } from '@/config/constants';
 
 export interface InspectOptions {
   cwd: string;
@@ -16,7 +17,7 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
     printResult(
       {
         ok: false,
-        error: `Not a valid bazel_git_lfs project: ${projectDir}. Run "bazel-git-lfs init" first.`,
+        error: `Not a valid bazel_git_lfs project: ${projectDir}. Run "${TOOL_NAME} ${COMMANDS.INIT}" first.`,
       },
       { json: true },
     );

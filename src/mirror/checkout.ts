@@ -4,8 +4,9 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CONFIG_DIR_NAME } from '@/config/paths';
+import { COMMANDS, ARCHIVE_SUFFIXES, FILES } from '@/config/constants';
 
-export const CHECKOUT_STATE_FILE = 'checkout-state.json';
+export const CHECKOUT_STATE_FILE = FILES.CHECKOUT_STATE;
 
 function checkoutStatePath(projectDir: string): string {
   return join(projectDir, CONFIG_DIR_NAME, CHECKOUT_STATE_FILE);
@@ -53,7 +54,7 @@ export interface CheckoutChange {
 
 export interface CheckoutResult {
   ok: boolean;
-  command: 'checkout';
+  command: typeof COMMANDS.CHECKOUT;
   alias: string;
   target: string;
   changes: CheckoutChange[];
@@ -74,8 +75,6 @@ export interface CheckoutDeps {
   readFiles: () => Promise<Record<string, string>>;
   rewriteFile: (path: string, content: string, before: string, after: string) => Promise<boolean>;
 }
-
-const ARCHIVE_SUFFIXES = ['.tar.gz', '.tgz', '.tar.bz2', '.tar.xz', '.zip', '.tar'];
 
 function stripArchiveExt(name: string): string {
   for (const ext of ARCHIVE_SUFFIXES) {
@@ -163,7 +162,7 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
 
   if (target.type === 'original' || target.type === 'remote') {
     if (!manifest) {
-      return { ok: false, command: 'checkout', alias, target: target.type, changes: [], changed: 0, unchanged: 0, error: 'mirror manifest is required for this target' };
+      return { ok: false, command: COMMANDS.CHECKOUT, alias, target: target.type, changes: [], changed: 0, unchanged: 0, error: 'mirror manifest is required for this target' };
     }
 
     for (const [sha256, entry] of Object.entries(manifest.objects)) {
@@ -199,7 +198,7 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
 
   return {
     ok: true,
-    command: 'checkout',
+    command: COMMANDS.CHECKOUT,
     alias,
     target: target.type,
     changes,

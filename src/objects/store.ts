@@ -5,6 +5,7 @@ import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import type { Readable as ReadableStream } from 'node:stream';
 import { CONFIG_DIR_NAME } from '@/config/paths';
+import { DIRS } from '@/config/constants';
 import { deriveObjectPath } from '@/objects/object-path';
 import {
   sha256HexOfBuffer,
@@ -51,7 +52,7 @@ export class ObjectsStore {
   }
 
   static forProject(projectDir: string): ObjectsStore {
-    return new ObjectsStore(join(projectDir, CONFIG_DIR_NAME, 'objects'));
+    return new ObjectsStore(join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS));
   }
 
   /**

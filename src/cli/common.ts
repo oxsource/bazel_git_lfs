@@ -3,12 +3,13 @@ import { projectConfigDir } from '@/config/paths';
 import { FsProfileStore, ConfigError } from '@/config/store';
 import { ConfigResolver } from '@/config/resolve';
 import { FsSnapshotStore } from '@/inspect/snapshot';
+import { COMMANDS, TOOL_NAME } from '@/config/constants';
 
 export const NOT_INITIALIZED_MESSAGE = (projectDir: string): string =>
-  `Not a valid bazel_git_lfs project: ${projectDir}. Run "bazel-git-lfs init" first.`;
+  `Not a valid bazel_git_lfs project: ${projectDir}. Run "${TOOL_NAME} ${COMMANDS.INIT}" first.`;
 
 export const NO_SNAPSHOT_MESSAGE =
-  'no dependency snapshot, run "bazel-git-lfs inspect" first';
+  `no dependency snapshot, run "${TOOL_NAME} ${COMMANDS.INSPECT}" first`;
 
 export interface RemoteInfo {
   alias: string;

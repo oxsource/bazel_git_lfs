@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildProgram } from '@/cli/index';
+import { COMMANDS } from '@/config/constants';
 
 interface Captured {
   code?: number;
@@ -61,7 +62,7 @@ function tempProject(): string {
 describe('CLI command surface', () => {
   it('--help lists all commands', async () => {
     const { stdout } = await runCli(['node', 'bazel-git-lfs', '--help']);
-    for (const cmd of ['init', 'inspect', 'fetch', 'pull', 'push', 'status', 'clean', 'checkout']) {
+    for (const cmd of Object.values(COMMANDS)) {
       expect(stdout).toContain(cmd);
     }
   });
@@ -72,7 +73,7 @@ describe('CLI command surface', () => {
   });
 
   it('fetch/pull/push reject extra arguments with a usage error (exit 2)', async () => {
-    for (const cmd of ['fetch', 'pull', 'push']) {
+    for (const cmd of [COMMANDS.FETCH, COMMANDS.PULL, COMMANDS.PUSH]) {
       const { code } = await runCli(['node', 'bazel-git-lfs', cmd, 'extra-arg']);
       expect(code).toBe(2);
     }
@@ -80,7 +81,7 @@ describe('CLI command surface', () => {
 
   it('fetch reports errors as JSON on stdout only (JSON-only contract)', async () => {
     const proj = tempProject();
-    const { code, stdout, stderr } = await runCli(['node', 'bazel-git-lfs', 'fetch'], proj);
+    const { code, stdout, stderr } = await runCli(['node', 'bazel-git-lfs', COMMANDS.FETCH], proj);
     expect(code).toBe(1);
     const parsed = JSON.parse(stdout); // stdout is the only channel; must be JSON
     expect(parsed).toEqual({
@@ -91,7 +92,7 @@ describe('CLI command surface', () => {
   });
 
   it('pull/push without a default profile report JSON errors (exit 1)', async () => {
-    for (const cmd of ['pull', 'push']) {
+    for (const cmd of [COMMANDS.PULL, COMMANDS.PUSH]) {
       const proj = tempProject();
       await runCli(['node', 'bazel-git-lfs', 'init'], proj);
       writeFileSync(join(proj, '.bazel_git_lfs', 'dependencies.json'), JSON.stringify({
@@ -108,15 +109,15 @@ describe('CLI command surface', () => {
   });
 
   it('init command is registered with help', async () => {
-    const { stdout } = await runCli(['node', 'bazel-git-lfs', 'init', '--help']);
-    expect(stdout).toContain('init');
+    const { stdout } = await runCli(['node', 'bazel-git-lfs', COMMANDS.INIT, '--help']);
+    expect(stdout).toContain(COMMANDS.INIT);
   });
 
   it('init creates a config area via the CLI', async () => {
     const proj = tempProject();
     const { existsSync } = await import('node:fs');
     const { join: pathJoin } = await import('node:path');
-    await runCli(['node', 'bazel-git-lfs', 'init'], proj);
+    await runCli(['node', 'bazel-git-lfs', COMMANDS.INIT], proj);
     const target = pathJoin(proj, '.bazel_git_lfs');
     await vi.waitFor(() => {
       expect(existsSync(target)).toBe(true);
@@ -125,12 +126,12 @@ describe('CLI command surface', () => {
   });
 
   it('checkout rejects missing alias with usage error (exit 2)', async () => {
-    const { code } = await runCli(['node', 'bazel-git-lfs', 'checkout']);
+    const { code } = await runCli(['node', 'bazel-git-lfs', COMMANDS.CHECKOUT]);
     expect(code).toBe(2);
   });
 
   it('checkout is registered with help', async () => {
-    const { stdout } = await runCli(['node', 'bazel-git-lfs', 'checkout', '--help']);
+    const { stdout } = await runCli(['node', 'bazel-git-lfs', COMMANDS.CHECKOUT, '--help']);
     expect(stdout).toContain('checkout');
   });
 });

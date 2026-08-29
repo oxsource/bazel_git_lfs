@@ -11,10 +11,11 @@ import type { ArtifactRepository } from '@/mirror/repository';
 import { GitLfsRepository } from '@/mirror/repository';
 import type { PerDependencyResult, PullSummary } from '@/objects/models';
 import { MissingSnapshotError } from '@/transfer/fetch';
+import { COMMANDS } from '@/config/constants';
 
 export interface PullCommandResult {
   ok: boolean;
-  command: 'pull';
+  command: typeof COMMANDS.PULL;
   projectDir: string;
   objectsDir: string;
   remote: RemoteInfo;
@@ -87,7 +88,7 @@ export async function runPull(
   const ok = summary.failed === 0 && summary['not-in-mirror'] === 0;
   return {
     ok,
-    command: 'pull',
+    command: COMMANDS.PULL,
     projectDir,
     objectsDir: store.objectsDir,
     remote: opts.remote,

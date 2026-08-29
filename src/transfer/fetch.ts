@@ -10,17 +10,18 @@ import type {
   FetchSummary,
   PerDependencyResult,
 } from '@/objects/models';
+import { COMMANDS, TOOL_NAME, DIRS } from '@/config/constants';
 
 export class MissingSnapshotError extends Error {
   constructor(snapshotPath: string) {
-    super(`no dependency snapshot, run "bazel-git-lfs inspect" first (expected ${snapshotPath})`);
+    super(`no dependency snapshot, run "${TOOL_NAME} ${COMMANDS.INSPECT}" first (expected ${snapshotPath})`);
     this.name = 'MissingSnapshotError';
   }
 }
 
 export interface FetchCommandResult {
   ok: boolean;
-  command: 'fetch';
+  command: typeof COMMANDS.FETCH;
   projectDir: string;
   objectsDir: string;
   results: PerDependencyResult[];
@@ -35,7 +36,7 @@ export interface FetchCommandResult {
  * verifying SHA256 before anything is stored (FR-001..FR-006).
  */
 export async function runFetch(projectDir: string): Promise<FetchCommandResult> {
-  const objectsDir = join(projectDir, CONFIG_DIR_NAME, 'objects');
+  const objectsDir = join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS);
   const store = ObjectsStore.forProject(projectDir);
   const snapshot = new FsSnapshotStore();
   const snapshotPath = snapshot.snapshotPath(projectDir);
@@ -62,7 +63,7 @@ export async function runFetch(projectDir: string): Promise<FetchCommandResult> 
   const failed = summary.failed;
   return {
     ok: failed === 0,
-    command: 'fetch',
+    command: COMMANDS.FETCH,
     projectDir,
     objectsDir,
     results,

@@ -1,6 +1,7 @@
 import { copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { CONFIG_DIR_NAME } from '@/config/paths';
+import { DIRS, FILES, GIT, LFS_PATTERNS } from '@/config/constants';
 import { GitLfs, GitError } from '@/mirror/lfs';
 import {
   emptyManifest,
@@ -60,7 +61,7 @@ export class GitLfsRepository implements ArtifactRepository {
     public readonly remoteUrl: string,
     timeoutMs?: number,
   ) {
-    this.workDir = join(projectDir, CONFIG_DIR_NAME, 'mirror');
+    this.workDir = join(projectDir, CONFIG_DIR_NAME, DIRS.MIRROR);
     this.git = new GitLfs(this.workDir, timeoutMs);
   }
 
@@ -92,7 +93,7 @@ export class GitLfsRepository implements ArtifactRepository {
     const fetch = await this.git.fetch();
     const branch = await this.git.currentBranch();
     const reset =
-      branch !== null ? await this.git.resetClean(branch) : await this.git.resetClean('main');
+      branch !== null ? await this.git.resetClean(branch) : await this.git.resetClean(GIT.DEFAULT_BRANCH);
     if (fetch.status !== 0 || reset.status !== 0) {
       // Dirty beyond repair (e.g. interrupted push) — re-clone from scratch.
       await this.cloneWorkingClone();
@@ -100,8 +101,8 @@ export class GitLfsRepository implements ArtifactRepository {
   }
 
   async readManifest(): Promise<ManifestReadResult> {
-    const manifestPath = join(this.workDir, 'manifest.json');
-    const objectsPresent = await hasObjects(join(this.workDir, 'objects'));
+    const manifestPath = join(this.workDir, FILES.MANIFEST);
+    const objectsPresent = await hasObjects(join(this.workDir, DIRS.OBJECTS));
 
     let raw: string | null = null;
     try {
@@ -143,27 +144,27 @@ export class GitLfsRepository implements ArtifactRepository {
       // Physical mirror layout: `objects/<maven-path>` (LFS-tracked via
       // .gitattributes); manifest entries record the maven path WITHOUT the
       // prefix (contracts/cli.md).
-      const target = join(this.workDir, 'objects', object.relPath);
+      const target = join(this.workDir, DIRS.OBJECTS, object.relPath);
       await mkdir(dirname(target), { recursive: true });
       await copyFile(object.sourcePath, target);
     }
 
     // Idempotent LFS tracking (only touches .gitattributes when needed).
-    const attributesPath = join(this.workDir, '.gitattributes');
+    const attributesPath = join(this.workDir, FILES.GIT_ATTRIBUTES);
     let attributes = '';
     try {
       attributes = await readFile(attributesPath, 'utf8');
     } catch {
       attributes = '';
     }
-    if (!attributes.includes('objects/**')) {
-      const track = await this.git.lfsTrack('objects/**');
+    if (!attributes.includes(LFS_PATTERNS.OBJECTS_TRACK)) {
+      const track = await this.git.lfsTrack(LFS_PATTERNS.OBJECTS_TRACK);
       if (track.status !== 0) {
         throw new GitError(`git lfs track failed: ${summarize(track)}`, track);
       }
     }
 
-    await writeFile(join(this.workDir, 'manifest.json'), serializeManifest(manifest), 'utf8');
+    await writeFile(join(this.workDir, FILES.MANIFEST), serializeManifest(manifest), 'utf8');
 
     const add = await this.git.addAll();
     if (add.status !== 0) {
@@ -179,8 +180,8 @@ export class GitLfsRepository implements ArtifactRepository {
       throw new GitError(`git commit failed: ${summarize(commit)}`, commit);
     }
 
-    const branch = (await this.git.currentBranch()) ?? 'main';
-    const rebase = await this.git.pullRebase('origin', branch);
+    const branch = (await this.git.currentBranch()) ?? GIT.DEFAULT_BRANCH;
+    const rebase = await this.git.pullRebase(GIT.DEFAULT_REMOTE, branch);
     if (rebase.status !== 0) {
       // First push to an (yet empty) remote has no branch to rebase onto —
       // that is fine; anything else is a race we must report (research §8).
@@ -203,7 +204,7 @@ export class GitLfsRepository implements ArtifactRepository {
   async materialize(relPaths: string[]): Promise<string[]> {
     if (relPaths.length === 0) return [];
     // Manifest paths are maven-relative; physical LFS paths live under objects/.
-    const physical = relPaths.map((relPath) => join('objects', relPath));
+    const physical = relPaths.map((relPath) => join(DIRS.OBJECTS, relPath));
     const pull = await this.git.lfsPullInclude(physical);
     if (pull.status !== 0) {
       throw new GitError(`git lfs pull failed: ${summarize(pull)}`, pull);

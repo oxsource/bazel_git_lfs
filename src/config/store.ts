@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { Profile, isValidAlias, isValidGitUrl } from '@/config/profile';
+import { COMMANDS, TOOL_NAME } from '@/config/constants';
 
 export interface ConfigFile {
   active: string | null;
@@ -38,7 +39,7 @@ export class FsProfileStore implements ProfileStore {
       parsed = JSON.parse(raw);
     } catch {
       throw new ConfigError(
-        `Config file at ${configPath} is corrupted (invalid JSON). Re-run "bazel-git-lfs init" to recreate it.`,
+        `Config file at ${configPath} is corrupted (invalid JSON). Re-run "${TOOL_NAME} ${COMMANDS.INIT}" to recreate it.`,
       );
     }
 
