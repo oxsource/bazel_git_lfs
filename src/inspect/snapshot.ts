@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { InspectResult, emptyInspectResult } from './models';
+import { InspectResult, emptyInspectResult, coerceInspectResult } from './models';
 
 export const SNAPSHOT_FILE_NAME = 'dependencies.json';
 
@@ -19,7 +19,7 @@ export class FsSnapshotStore implements SnapshotStore {
   async read(projectDir: string): Promise<InspectResult> {
     try {
       const raw = await readFile(this.snapshotPath(projectDir), 'utf8');
-      return JSON.parse(raw) as InspectResult;
+      return coerceInspectResult(JSON.parse(raw));
     } catch {
       return emptyInspectResult(projectDir);
     }

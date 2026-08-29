@@ -134,4 +134,22 @@ describe('CLI command surface', () => {
     const { stdout } = await runCli(['node', 'bazel-git-lfs', COMMANDS.CHECKOUT, '--help']);
     expect(stdout).toContain('checkout');
   });
+
+  it('checkout returns JSON output (even on error)', async () => {
+    const proj = tempProject();
+    await runCli(['node', 'bazel-git-lfs', 'init'], proj);
+    writeFileSync(join(proj, '.bazel_git_lfs', 'dependencies.json'), JSON.stringify({
+      schemaVersion: 2, projectDir: proj, dependencies: [], warnings: [],
+      filesScanned: ['WORKSPACE'], queryUsed: false, queryExternalRepos: null,
+      dependencyRelations: null, conflicts: [], hasConflicts: false,
+    }));
+    writeFileSync(join(proj, 'WORKSPACE'), '# empty');
+    const { code, stdout } = await runCli(['node', 'bazel-git-lfs', COMMANDS.CHECKOUT, 'default'], proj);
+    const parsed = JSON.parse(stdout);
+    expect(parsed).toHaveProperty('ok');
+    expect(parsed.ok).toBe(false);
+    // patches is not defined when the command fails early
+    expect(parsed.patches).toBeUndefined();
+    rmSync(proj, { recursive: true, force: true });
+  });
 });

@@ -1,5 +1,6 @@
 import { stat } from 'node:fs/promises';
 import { BazelLoader } from './loader';
+import { ExternalResolver } from './external-resolver';
 import { runBazelQuery } from './bazel-query';
 import { InspectResult, emptyInspectResult } from './models';
 
@@ -20,12 +21,20 @@ export async function inspectProject(opts: InspectProjectOptions): Promise<Inspe
     throw new Error(`Project directory not readable: ${opts.projectDir}`);
   }
 
-  const loader = new BazelLoader(opts.projectDir);
-  const loaded = await loader.loadEntryFiles();
+  const resolver = new ExternalResolver(opts.projectDir);
+  const loader = new BazelLoader(opts.projectDir, resolver);
+  let loaded;
+  try {
+    loaded = await loader.loadEntryFiles();
+  } finally {
+    await resolver.cleanup().catch(() => {});
+  }
 
   result.dependencies = loaded.dependencies;
   result.warnings = loaded.warnings;
   result.filesScanned = loaded.filesScanned;
+  result.conflicts = loaded.conflicts;
+  result.hasConflicts = loaded.conflicts.length > 0;
 
   if (opts.useQuery !== false) {
     const query = await runBazelQuery(opts.projectDir);

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   mkdtempSync,
   mkdirSync,
@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { runInspect } from '@/cli/inspect';
 
 const fixturesDir = fileURLToPath(new URL('../fixtures/projects', import.meta.url));
+const sandboxDir = fileURLToPath(new URL('../fixtures/sandbox', import.meta.url));
 
 function setupProject(fixture: string): string {
   const root = mkdtempSync(join(tmpdir(), 'bglf-inspect-'));
@@ -141,5 +142,81 @@ describe('runInspect', () => {
     const parsed = JSON.parse(stdout);
     expect(parsed.ok).toBe(false);
     expect(parsed.error).toContain('Cannot read Bazel file: WORKSPACE');
+  });
+
+  it('discovers external deps from @repo// loads via sandbox', async () => {
+    const proj = setupProject('external');
+
+    // Mock execFile to return the sandbox dir as the output_base.
+    vi.mock('node:child_process', () => ({
+      execFile: vi.fn(
+        (_cmd: string, _args: string[], _opts: unknown, cb?: (err: Error | null, result: { stdout: string }) => void) => {
+          if (cb) cb(null, { stdout: sandboxDir + '\n' });
+          return {} as ReturnType<typeof import('node:child_process').execFile>;
+        },
+      ),
+    }));
+
+    // Re-import to pick up the mock.
+    const { runInspect: ri } = await import('@/cli/inspect');
+    const { code, stdout } = await captureInspect(proj);
+
+    expect(code).toBe(0);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.ok).toBe(true);
+
+    // Should find B (entry) + openssl + patch_xyz (from B's bzl).
+    expect(parsed.dependencies.length).toBeGreaterThanOrEqual(3);
+
+    const openssl = parsed.dependencies.find((d: { name: string }) => d.name === 'openssl');
+    expect(openssl).toBeTruthy();
+    expect(openssl.origin).toBe('external-bzl');
+    expect(openssl.fromRepo).toBe('B');
+    expect(openssl.loadChain).toContain('@B//:deps.bzl');
+
+    const bDep = parsed.dependencies.find((d: { name: string }) => d.name === 'B');
+    expect(bDep).toBeTruthy();
+    expect(bDep.origin).toBe('entry');
+
+    // Confirm snapshot was written with schema version.
+    const snapshot = JSON.parse(readFileSync(parsed.snapshotPath, 'utf8'));
+    expect(snapshot.schemaVersion).toBe(2);
+  });
+
+  it('detects conflicting re-declarations and exits non-zero', async () => {
+    const proj = setupProject('empty');
+    // Overwrite WORKSPACE with conflicting declarations.
+    writeFileSync(join(proj, 'WORKSPACE'), `
+http_archive(
+    name = "zlib",
+    url = "https://example.org/zlib-1.3.tar.gz",
+    sha256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+)
+http_archive(
+    name = "zlib",
+    url = "https://example.org/zlib-2.0.tar.gz",
+    sha256 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+)
+`);
+
+    const { code, stdout } = await captureInspect(proj);
+    expect(code).toBe(1);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.conflicts).toHaveLength(1);
+    expect(parsed.conflicts[0].repo).toBe('zlib');
+    expect(parsed.hasConflicts).toBe(true);
+  });
+
+  it('detects load cycles gracefully', async () => {
+    const proj = setupProject('empty');
+    // Create a self-referencing load cycle.
+    writeFileSync(join(proj, 'WORKSPACE'), 'load("//:a.bzl", "a")');
+    writeFileSync(join(proj, 'a.bzl'), 'load("//:a.bzl", "a")');
+
+    const { code, stdout } = await captureInspect(proj);
+    expect(code).toBe(0);
+    const parsed = JSON.parse(stdout);
+    // Should not crash; cycle is caught by visited set.
+    expect(parsed.conflicts).toHaveLength(0);
   });
 });
