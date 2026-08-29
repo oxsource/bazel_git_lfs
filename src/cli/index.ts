@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { runInit } from '@/cli/init';
+import { runInspect } from '@/cli/inspect';
 import {
   runRemoteAdd,
   runRemoteSetDefault,
@@ -14,7 +15,7 @@ import { printUsageError, OutputOptions } from '@/cli/format';
 
 const VERSION: string = __BGL_VERSION__;
 
-const STUB_COMMANDS = ['scan', 'sync', 'verify', 'list', 'search', 'rewrite'] as const;
+const STUB_COMMANDS = ['sync', 'verify', 'list', 'search', 'rewrite'] as const;
 
 export interface CliDeps {
   cwd?: string;
@@ -29,10 +30,11 @@ export function buildProgram(deps: CliDeps = {}): Command {
   program
     .name('bazel-git-lfs')
     .description(
-      'Discover, cache, and mirror Bazel remote HTTP dependencies into a shared Git LFS repository',
+      'Discover and mirror Bazel remote HTTP dependencies into a shared Git LFS repository',
     )
     .version(VERSION)
-    .exitOverride();
+    .exitOverride()
+    .configureOutput({ writeErr: () => {} });
 
   program
     .command('init')
@@ -40,6 +42,19 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .option('--json', 'output machine-readable JSON')
     .action(async (options: OutputOptions) => {
       const code = await runInit({ json: Boolean(options.json), cwd });
+      if (code !== 0) {
+        process.exitCode = code;
+      }
+    });
+
+  program
+    .command('inspect')
+    .description(
+      'Discover the current project\u2019s remote HTTP dependencies and persist the snapshot (JSON)',
+    )
+    .allowExcessArguments(false)
+    .action(async () => {
+      const code = await runInspect({ cwd });
       if (code !== 0) {
         process.exitCode = code;
       }
@@ -203,7 +218,8 @@ export function run(argv: string[]): void {
     if (error.code === 'commander.helpDisplayed' || error.code === 'commander.version') {
       return;
     }
-    printUsageError(error.message ?? 'Unknown error');
+    const message = (error.message ?? 'Unknown error').replace(/^error: /, '');
+    printUsageError(message);
   }
 }
 

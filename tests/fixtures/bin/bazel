@@ -1,0 +1,16 @@
+#!/bin/sh
+# Mock `bazel` binary for hermetic query tests (research decision 6).
+# Emits a canned `bazel query //external:* --output=build` style listing.
+cat <<'EOF'
+external/abseil
+external/protobuf
+external/googletest_patch
+external/libcurl
+external/openssl
+external/libdatachannel
+external/some_patch
+external/zlib
+external/cmake_patch
+external/boost
+external/spdlog
+EOF

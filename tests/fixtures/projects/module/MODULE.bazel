@@ -1,0 +1,14 @@
+# MODULE.bazel with remote HTTP dependencies (bzlmod)
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "libdatachannel",
+    url = "https://github.com/paullouisageneau/libdatachannel/archive/refs/tags/v0.20.0.tar.gz",
+    sha256 = "6666666666666666666666666666666666666666666666666666666666666666",
+)
+
+http_file(
+    name = "some_patch",
+    url = "https://example.com/patches/some.patch",
+    sha256 = "7777777777777777777777777777777777777777777777777777777777777777",
+)

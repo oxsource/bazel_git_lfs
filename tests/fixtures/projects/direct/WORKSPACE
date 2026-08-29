@@ -1,0 +1,20 @@
+workspace(name = "fixture_direct")
+
+http_archive(
+    name = "abseil",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20250127.0.tar.gz"],
+    sha256 = "1111111111111111111111111111111111111111111111111111111111111111",
+    strip_prefix = "abseil-cpp-20250127.0",
+)
+
+http_archive(
+    name = "protobuf",
+    url = "https://github.com/protocolbuffers/protobuf/archive/refs/tags/v30.0.tar.gz",
+    sha256 = "2222222222222222222222222222222222222222222222222222222222222222",
+)
+
+http_file(
+    name = "googletest_patch",
+    url = "https://github.com/google/googletest/archive/refs/tags/v1.15.0.tar.gz",
+    sha256 = "3333333333333333333333333333333333333333333333333333333333333333",
+)

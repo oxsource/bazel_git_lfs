@@ -55,13 +55,13 @@ function tempProject(): string {
 describe('CLI command surface', () => {
   it('--help lists all commands', () => {
     const { stdout } = runCli(['node', 'bazel-git-lfs', '--help']);
-    for (const cmd of ['init', 'scan', 'sync', 'verify', 'list', 'search', 'rewrite']) {
+    for (const cmd of ['init', 'inspect', 'sync', 'verify', 'list', 'search', 'rewrite']) {
       expect(stdout).toContain(cmd);
     }
   });
 
   it('stub commands exit non-zero', () => {
-    for (const cmd of ['scan', 'sync', 'verify', 'list', 'search', 'rewrite']) {
+    for (const cmd of ['sync', 'verify', 'list', 'search', 'rewrite']) {
       const { code, stderr } = runCli(['node', 'bazel-git-lfs', cmd]);
       expect(code).toBe(1);
       expect(stderr).toContain('not implemented');
@@ -69,7 +69,7 @@ describe('CLI command surface', () => {
   });
 
   it('stub commands emit JSON error with --json', () => {
-    const { stdout } = runCli(['node', 'bazel-git-lfs', 'scan', '--json']);
+    const { stdout } = runCli(['node', 'bazel-git-lfs', 'sync', '--json']);
     const parsed = JSON.parse(stdout);
     expect(parsed).toEqual({ ok: false, error: expect.stringContaining('not implemented') });
   });

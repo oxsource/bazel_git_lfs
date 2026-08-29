@@ -27,7 +27,7 @@
 
 ### User Story 1 - Scan a Bazel project and discover HTTP dependencies (Priority: P1)
 
-A developer runs the tool against a Bazel project directory (e.g., `graph_runtime`). The tool parses `WORKSPACE`, `WORKSPACE.bazel`, and `MODULE.bazel`, and extracts all remote HTTP dependencies (`http_archive`, `http_file`), capturing each dependency's name, source URL(s), declared SHA256, and strip prefix. Nothing is uploaded or changed — this is a read-only discovery pass.
+A developer runs the tool against a Bazel project directory (e.g., `graph_runtime`). The tool parses `WORKSPACE`, `WORKSPACE.bazel`, and `MODULE.bazel`, and extracts all remote HTTP dependencies (`http_archive`, `http_file`), capturing each dependency's name, source URL(s), declared SHA256, and strip prefix. Nothing is uploaded and no project file is changed — the only write is the tool-owned dependency snapshot under `.bazel_git_lfs`.
 
 **Why this priority**: Discovery is the foundation. Every other capability (download, verify, cache, mirror) depends on first knowing which artifacts are needed. It delivers immediate value by producing an inventory of external dependencies with no side effects.
 
@@ -155,7 +155,7 @@ The tool is distributed as a Node.js command-line utility published to the publi
 
 - **FR-001**: System MUST scan a Bazel project and discover remote HTTP dependencies from `WORKSPACE`, `WORKSPACE.bazel`, and `MODULE.bazel`, supporting `http_archive` and `http_file` rules.
 - **FR-002**: System MUST extract for each dependency: its name, all source URLs, the declared SHA256, and any `strip_prefix` metadata.
-- **FR-003**: System MUST provide a `scan` command that performs discovery without downloading, uploading, or modifying anything.
+- **FR-003**: System MUST provide an `inspect` command that performs discovery without downloading, uploading, or modifying anything (it persists only the tool-owned snapshot under `.bazel_git_lfs`).
 - **FR-004**: System MUST provide a `sync` command that discovers dependencies, checks cache and mirror, downloads missing artifacts, and mirrors them.
 - **FR-005**: System MUST perform SHA256 verification on every downloaded artifact and MUST NOT store any artifact whose hash does not match its declared SHA256.
 - **FR-006**: System MUST use SHA256 as the content identity for deduplication (identical content under different URLs is stored once).

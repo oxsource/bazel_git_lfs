@@ -1,0 +1,4 @@
+# Declares dependencies in a separate .bzl file, loaded below.
+load("//:deps.bzl", "fixture_deps")
+
+fixture_deps()
