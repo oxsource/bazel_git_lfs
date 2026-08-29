@@ -1,0 +1,20 @@
+{
+  "description": "Fixture artifact payloads with known SHA256 for fetch/pull/push tests",
+  "artifacts": {
+    "alpha.bin": {
+      "sha256": "15a019bdffa8f446afa81fe49b132cde0ce178a62978e5f885f5ae9be094ad07",
+      "size": 566,
+      "description": "valid artifact payload (gzip-magic header + padding)"
+    },
+    "beta.bin": {
+      "sha256": "01b8b3ff19c626b8fb93861d9e67b2b1e8fec26d3ba84c87b5271f30e103259d",
+      "size": 577,
+      "description": "a second distinct payload"
+    },
+    "alpha-corrupt.bin": {
+      "sha256": "384b50fee9fb1b49b77fb726062aaaf842f1923e54b26af751018dbc8b72db3e",
+      "size": 566,
+      "description": "deliberately corrupt variant of alpha (serves bytes whose digest does NOT match alpha's declared hash)"
+    }
+  }
+}
