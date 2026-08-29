@@ -63,17 +63,17 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T014 [P] [US1] Unit tests for object-path derivation in tests/unit/object-path.spec.ts (URL matrix: github.com deep path, multi-level TLD, bare-host, IP/port/query fallback → sanitized bucket + warning, filename exclusion, dedup for identical sha256)
-- [ ] T015 [P] [US1] Unit tests for ObjectsStore in tests/unit/objects-store.spec.ts (put is atomic and verified; has re-verifies and treats corrupt entry as absent; get returns path; put failure leaves no partial file) (FR-004, FR-005)
-- [ ] T016 [P] [US1] Unit tests for origin download in tests/unit/download.spec.ts with mocked global fetch (URL list tried in order; first success wins; hash mismatch → rejected + next URL; all fail → `no-url-succeeded`; missing sha256 → `missing-sha256` without any request; network error classified) per research decision 2 (FR-002, FR-006)
+- [x] T014 [P] [US1] Unit tests for object-path derivation in tests/unit/object-path.spec.ts (URL matrix: github.com deep path, multi-level TLD, bare-host, IP/port/query fallback → sanitized bucket + warning, filename exclusion, dedup for identical sha256)
+- [x] T015 [P] [US1] Unit tests for ObjectsStore in tests/unit/objects-store.spec.ts (put is atomic and verified; has re-verifies and treats corrupt entry as absent; get returns path; put failure leaves no partial file) (FR-004, FR-005)
+- [x] T016 [P] [US1] Unit tests for origin download in tests/unit/download.spec.ts with mocked global fetch (URL list tried in order; first success wins; hash mismatch → rejected + next URL; all fail → `no-url-succeeded`; missing sha256 → `missing-sha256` without any request; network error classified) per research decision 2 (FR-002, FR-006)
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] Implement origin download in src/objects/download.ts (global fetch, stream body to temp file while hashing, verify before rename, URL-list fallback, per-URL error capture) (FR-001, FR-002, FR-004, FR-006)
-- [ ] T018 [US1] Implement fetch orchestration in src/transfer/fetch.ts (read snapshot via Stage 2 FsSnapshotStore; per dependency: missing-sha256 → fail; has() → cached; else download → store put → fetched; continue past failures; summary counts; non-zero outcome when any failed) per FR-001/FR-005/FR-006/FR-013
-- [ ] T019 [US1] Implement the `fetch` CLI command in src/cli/fetch.ts (init-check → snapshot check → no profile needed → orchestrate → JSON result `{ ok, command: "fetch", projectDir, objectsDir, results, summary }`; fatal errors `{ ok: false, error }` exit 1; extra args → usage exit 2) per contracts/cli.md (FR-013, FR-018)
-- [ ] T020 [US1] Register the `fetch` command in src/cli/index.ts with Commander (no args, no flags, `allowExcessArguments(false)`, exit-code handling)
-- [ ] T021 [US1] Integration test for fetch end-to-end in tests/integration/fetch.spec.ts (temp project + local http origin + temp config area: 3 deps fetched to expected paths; corrupt origin bytes → failed + nothing stored; identical sha256 across two deps → one stored file; re-fetch → all cached with no origin hits recorded)
+- [x] T017 [US1] Implement origin download in src/objects/download.ts (global fetch, stream body to temp file while hashing, verify before rename, URL-list fallback, per-URL error capture) (FR-001, FR-002, FR-004, FR-006)
+- [x] T018 [US1] Implement fetch orchestration in src/transfer/fetch.ts (read snapshot via Stage 2 FsSnapshotStore; per dependency: missing-sha256 → fail; has() → cached; else download → store put → fetched; continue past failures; summary counts; non-zero outcome when any failed) per FR-001/FR-005/FR-006/FR-013
+- [x] T019 [US1] Implement the `fetch` CLI command in src/cli/fetch.ts (init-check → snapshot check → no profile needed → orchestrate → JSON result `{ ok, command: "fetch", projectDir, objectsDir, results, summary }`; fatal errors `{ ok: false, error }` exit 1; extra args → usage exit 2) per contracts/cli.md (FR-013, FR-018)
+- [x] T020 [US1] Register the `fetch` command in src/cli/index.ts with Commander (no args, no flags, `allowExcessArguments(false)`, exit-code handling)
+- [x] T021 [US1] Integration test for fetch end-to-end in tests/integration/fetch.spec.ts (temp project + local http origin + temp config area: 3 deps fetched to expected paths; corrupt origin bytes → failed + nothing stored; identical sha256 across two deps → one stored file; re-fetch → all cached with no origin hits recorded)
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently (G1 gate: no unverified byte is ever stored)
 
@@ -87,14 +87,14 @@
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Unit tests for manifest merge in tests/unit/manifest.spec.ts (new entry; same sha256 different URL → sources union, same path; updatedAt refreshed; corrupt manifest with existing objects → abort error) per research decision 5
+- [x] T022 [P] [US2] Unit tests for manifest merge in tests/unit/manifest.spec.ts (new entry; same sha256 different URL → sources union, same path; updatedAt refreshed; corrupt manifest with existing objects → abort error) per research decision 5
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] Implement push orchestration in src/transfer/push.ts (init/clone/reset working clone via repository; ensure `objects/**` LFS tracking; resolve per-dependency: already-mirrored by manifest lookup / missing-local / uploaded; copy objects into clone; merge manifest; commit only when changed; pull --rebase before push; capture commit id and pushed flag) per FR-007/FR-008/FR-009/FR-020
-- [ ] T024 [US2] Implement the `push` CLI command in src/cli/push.ts (init-check → snapshot check → effective default profile via Stage 1 ConfigResolver → orchestrate → JSON `{ ok, command: "push", projectDir, remote, commit, pushed, results, summary }`; missing-local alone exits 0) per contracts/cli.md (FR-009, FR-012, FR-018)
-- [ ] T025 [US2] Register the `push` command in src/cli/index.ts (replace the `sync` stub: remove sync, register fetch/pull/push — combined with T027 if sequencing prefers)
-- [ ] T026 [US2] Integration test for push end-to-end in tests/integration/push.spec.ts with the git-lfs mirror helper (fetch→push round trip: mirror objects + manifest + commit; re-push idempotent no new commit; missing-local dep reported, others still pushed; no default profile → JSON error; rejected git push → failure with re-run hint via stub git in tests/fixtures/bin/) (FR-008, FR-009)
+- [x] T023 [US2] Implement push orchestration in src/transfer/push.ts (init/clone/reset working clone via repository; ensure `objects/**` LFS tracking; resolve per-dependency: already-mirrored by manifest lookup / missing-local / uploaded; copy objects into clone; merge manifest; commit only when changed; pull --rebase before push; capture commit id and pushed flag) per FR-007/FR-008/FR-009/FR-020
+- [x] T024 [US2] Implement the `push` CLI command in src/cli/push.ts (init-check → snapshot check → effective default profile via Stage 1 ConfigResolver → orchestrate → JSON `{ ok, command: "push", projectDir, remote, commit, pushed, results, summary }`; missing-local alone exits 0) per contracts/cli.md (FR-009, FR-012, FR-018)
+- [x] T025 [US2] Register the `push` command in src/cli/index.ts (replace the `sync` stub: remove sync, register fetch/pull/push — combined with T027 if sequencing prefers)
+- [x] T026 [US2] Integration test for push end-to-end in tests/integration/push.spec.ts with the git-lfs mirror helper (fetch→push round trip: mirror objects + manifest + commit; re-push idempotent no new commit; missing-local dep reported, others still pushed; no default profile → JSON error; rejected git push → failure with re-run hint via stub git in tests/fixtures/bin/) (FR-008, FR-009)
 
 **Checkpoint**: At this point, the P1 pipeline `fetch → push` populates a real mirror; re-push is idempotent (SC-002)
 

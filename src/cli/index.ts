@@ -2,6 +2,8 @@
 import { Command } from 'commander';
 import { runInit } from '@/cli/init';
 import { runInspect } from '@/cli/inspect';
+import { runFetchCommand } from '@/cli/fetch';
+import { runPushCommand } from '@/cli/push';
 import {
   runRemoteAdd,
   runRemoteSetDefault,
@@ -55,6 +57,32 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .allowExcessArguments(false)
     .action(async () => {
       const code = await runInspect({ cwd });
+      if (code !== 0) {
+        process.exitCode = code;
+      }
+    });
+
+  program
+    .command('fetch')
+    .description(
+      'Download snapshot dependencies from their source URLs into the local objects store (JSON)',
+    )
+    .allowExcessArguments(false)
+    .action(async () => {
+      const code = await runFetchCommand({ cwd });
+      if (code !== 0) {
+        process.exitCode = code;
+      }
+    });
+
+  program
+    .command('push')
+    .description(
+      'Upload local objects to the configured Git LFS mirror, update the manifest, commit and push (JSON)',
+    )
+    .allowExcessArguments(false)
+    .action(async () => {
+      const code = await runPushCommand({ cwd, env });
       if (code !== 0) {
         process.exitCode = code;
       }
