@@ -5,6 +5,7 @@ describe('checkout alias resolution', () => {
   it('resolves default alias to original target', async () => {
     const result = await runCheckoutScan({
       alias: 'default',
+      dependencies: [],
       resolveTarget: async () => ({ type: 'original', baseUrl: '' }),
       readFiles: async () => ({}),
       rewriteFile: async () => false,
@@ -15,6 +16,7 @@ describe('checkout alias resolution', () => {
   it('resolves -- shorthand to default', async () => {
     const result = await runCheckoutScan({
       alias: '--',
+      dependencies: [],
       resolveTarget: async () => ({ type: 'original', baseUrl: '' }),
       readFiles: async () => ({}),
       rewriteFile: async () => false,
@@ -25,6 +27,7 @@ describe('checkout alias resolution', () => {
   it('resolves @ shorthand to local', async () => {
     const result = await runCheckoutScan({
       alias: '@',
+      dependencies: [],
       resolveTarget: async () => ({ type: 'local', baseUrl: '' }),
       readFiles: async () => ({}),
       rewriteFile: async () => false,
@@ -35,6 +38,7 @@ describe('checkout alias resolution', () => {
   it('resolves local alias to local target', async () => {
     const result = await runCheckoutScan({
       alias: 'local',
+      dependencies: [],
       resolveTarget: async () => ({ type: 'local', baseUrl: '' }),
       readFiles: async () => ({}),
       rewriteFile: async () => false,
@@ -45,6 +49,7 @@ describe('checkout alias resolution', () => {
   it('resolves profile alias to remote target', async () => {
     const result = await runCheckoutScan({
       alias: 'production',
+      dependencies: [],
       resolveTarget: async () => ({ type: 'remote', baseUrl: 'https://mirror.example.com' }),
       readFiles: async () => ({}),
       rewriteFile: async () => false,
@@ -54,11 +59,13 @@ describe('checkout alias resolution', () => {
 });
 
 describe('checkout URL rewriting', () => {
+  const SHA = 'ab12deadbeef123456789012345678901234567890123456789012345678901234';
+
   const manifest = {
     version: 1,
     updatedAt: '2026-01-01T00:00:00.000Z',
     objects: {
-      'ab12deadbeef123456789012345678901234567890123456789012345678901234': {
+      [SHA]: {
         path: 'com/example/bar/ab12deadbeef',
         sources: ['https://github.com/foo/bar'],
         firstSeenAt: '2026-01-01T00:00:00.000Z',
@@ -66,11 +73,14 @@ describe('checkout URL rewriting', () => {
     },
   };
 
+  const deps = [{ name: 'bar', sha256: SHA, urls: ['https://github.com/foo/bar'] }];
+
   it('rewrites URLs to mirror target and reports changes', async () => {
     let rewriteCalled = false;
     const result = await runCheckoutScan({
       alias: 'production',
       manifest,
+      dependencies: deps,
       resolveTarget: async () => ({ type: 'remote', baseUrl: 'https://mirror.example.com' }),
       readFiles: async () => ({
         'WORKSPACE': `http_archive(\n  name = "bar",\n  urls = ["https://github.com/foo/bar"],\n)\n`,
@@ -91,9 +101,10 @@ describe('checkout URL rewriting', () => {
     const result = await runCheckoutScan({
       alias: 'production',
       manifest,
+      dependencies: deps,
       resolveTarget: async () => ({ type: 'remote', baseUrl: 'https://mirror.example.com' }),
       readFiles: async () => ({
-        'WORKSPACE': `http_archive(\n  name = "bar",\n  urls = ["https://mirror.example.com/ab12deadbeef123456789012345678901234567890123456789012345678901234/com/example/bar/ab12deadbeef"],\n)\n`,
+        'WORKSPACE': `http_archive(\n  name = "bar",\n  urls = ["https://mirror.example.com/com/example/bar/ab12deadbeef"],\n)\n`,
       }),
       rewriteFile: async () => {
         rewriteCalled = true;
@@ -109,6 +120,7 @@ describe('checkout URL rewriting', () => {
     const result = await runCheckoutScan({
       alias: 'production',
       manifest,
+      dependencies: deps,
       resolveTarget: async () => ({ type: 'remote', baseUrl: 'https://mirror.example.com' }),
       readFiles: async () => ({
         'WORKSPACE': `http_archive(\n  name = "bar",\n  urls = ["https://github.com/foo/bar"],\n)\n`,

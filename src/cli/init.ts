@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { paths, CONFIG_DIR_NAME } from '@/config/paths';
 import { format, EXIT_OK, EXIT_ERROR, OutputOptions } from '@/cli/format';
 import { RESERVED_ALIASES } from '@/mirror/alias';
-import { TOOL_NAME, FILES } from '@/config/constants';
+import { TOOL_NAME, FILES, LFS_PATTERNS } from '@/config/constants';
 
 const GITIGNORE_ENTRY = '.bazel_git_lfs/';
 
@@ -54,7 +54,7 @@ export async function runInit(opts: InitOptions): Promise<number> {
   }
 
   try {
-    execFileSync('git', ['lfs', 'track', '*'], { cwd: objectsDir, stdio: 'pipe' });
+    execFileSync('git', ['lfs', 'track', LFS_PATTERNS.OBJECTS_TRACK], { cwd: objectsDir, stdio: 'pipe' });
   } catch {
     // git-lfs not installed — non-fatal, LFS tracking can be added later
   }

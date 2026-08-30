@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CONFIG_DIR_NAME } from '@/config/paths';
-import { COMMANDS, ARCHIVE_SUFFIXES, FILES } from '@/config/constants';
+import { COMMANDS, FILES } from '@/config/constants';
 
 export const CHECKOUT_STATE_FILE = FILES.CHECKOUT_STATE;
 
@@ -79,21 +79,11 @@ export interface CheckoutTarget {
 export interface CheckoutDeps {
   alias: string;
   manifest?: MirrorManifest;
+  /** Snapshot dependencies (name + sha256 + urls) used to match manifest entries. */
+  dependencies: Array<{ name: string; sha256: string | null; urls: string[] }>;
   resolveTarget: (alias: string) => Promise<CheckoutTarget>;
   readFiles: () => Promise<Record<string, string>>;
   rewriteFile: (path: string, content: string, before: string, after: string) => Promise<boolean>;
-}
-
-function stripArchiveExt(name: string): string {
-  for (const ext of ARCHIVE_SUFFIXES) {
-    if (name.endsWith(ext)) return name.slice(0, -ext.length);
-  }
-  return name;
-}
-
-function deriveDepName(url: string): string {
-  const last = url.replace(/\/$/, '').split('/').pop() || '';
-  return stripArchiveExt(last);
 }
 
 // Exported for testing
@@ -173,28 +163,64 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
       return { ok: false, command: COMMANDS.CHECKOUT, alias, target: target.type, changes: [], changed: 0, unchanged: 0, error: 'mirror manifest is required for this target' };
     }
 
-    for (const [sha256, entry] of Object.entries(manifest.objects)) {
+    for (const dep of deps.dependencies) {
+      if (!dep.sha256) continue;
+      const entry = manifest.objects[dep.sha256];
+      if (!entry) {
+        unchanged++;
+        continue;
+      }
+
       const originalUrl = entry.sources[0];
-      const depName = deriveDepName(originalUrl);
+      const targetUrl = target.type === 'original' ? originalUrl : `${target.baseUrl}/${entry.path}`;
 
       let found = false;
       for (const [filePath, content] of Object.entries(files)) {
-        const currentUrl = findDependencyUrl(content, depName);
+        const currentUrl = findDependencyUrl(content, dep.name);
         if (currentUrl === null) continue;
         found = true;
-
-        const targetUrl = target.type === 'original' ? originalUrl : `${target.baseUrl}/${sha256}/${entry.path}`;
 
         if (currentUrl === targetUrl) {
           unchanged++;
           continue;
         }
 
-        const { changed, newContent } = replaceDependencyUrl(content, depName, targetUrl);
+        const { changed, newContent } = replaceDependencyUrl(content, dep.name, targetUrl);
         if (changed) {
           const written = await deps.rewriteFile(filePath, newContent, currentUrl, targetUrl);
           if (written) {
-            changes.push({ file: filePath, dependency: depName, before: currentUrl, after: targetUrl });
+            changes.push({ file: filePath, dependency: dep.name, before: currentUrl, after: targetUrl });
+          }
+        } else {
+          unchanged++;
+        }
+      }
+      if (!found) unchanged++;
+    }
+  } else {
+    // Local target: iterate over snapshot dependencies directly.
+    for (const dep of deps.dependencies) {
+      const currentUrl = dep.urls[0];
+      if (!currentUrl) continue;
+      const fileName = currentUrl.replace(/\/$/, '').split('/').pop() || 'object';
+      const targetUrl = `${target.baseUrl}/${fileName}`;
+
+      let found = false;
+      for (const [filePath, content] of Object.entries(files)) {
+        const currentInFile = findDependencyUrl(content, dep.name);
+        if (currentInFile === null) continue;
+        found = true;
+
+        if (currentInFile === targetUrl) {
+          unchanged++;
+          continue;
+        }
+
+        const { changed, newContent } = replaceDependencyUrl(content, dep.name, targetUrl);
+        if (changed) {
+          const written = await deps.rewriteFile(filePath, newContent, currentInFile, targetUrl);
+          if (written) {
+            changes.push({ file: filePath, dependency: dep.name, before: currentInFile, after: targetUrl });
           }
         } else {
           unchanged++;

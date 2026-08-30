@@ -101,16 +101,24 @@ export function buildProgram(deps: CliDeps = {}): Command {
 }
 
 export function run(argv: string[]): void {
-  const args = argv.slice(2);
+  let args = argv.slice(2);
 
   // Configure global fetch dispatcher for proxy support before any command runs.
   setupProxy();
+
+  // Normalize checkout aliases: `--` and `@` are shell/commander special
+  // characters, so map them to their canonical names before parsing.
+  if (args[0] === COMMANDS.CHECKOUT) {
+    if (args[1] === '--') args = [COMMANDS.CHECKOUT, 'default', ...args.slice(2)];
+    else if (args[1] === '@') args = [COMMANDS.CHECKOUT, 'local', ...args.slice(2)];
+  }
+  const normalizedArgv = [argv[0], argv[1], ...args];
 
   // Show custom command help if no args or help/version.
   if (args.length === 0 || isHelpOrVersion(args[0])) {
     const program = buildProgram();
     try {
-      program.parse(argv);
+      program.parse(normalizedArgv);
     } catch (err) {
       const error = err as { code?: string; message?: string };
       if (error.code === 'commander.helpDisplayed' || error.code === 'commander.version') {
@@ -124,7 +132,7 @@ export function run(argv: string[]): void {
   if (CUSTOM_COMMANDS.has(args[0])) {
     const program = buildProgram();
     try {
-      program.parse(argv);
+      program.parse(normalizedArgv);
     } catch (err) {
       const error = err as { code?: string; message?: string };
       if (error.code === 'commander.helpDisplayed') {

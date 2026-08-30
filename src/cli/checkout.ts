@@ -4,11 +4,12 @@ import { guard } from '@/cli/common';
 import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
 import { runCheckoutScan, writeCheckoutState, removeCheckoutState, isNonDefaultCheckout } from '@/mirror/checkout';
 import { resolveAlias, RESERVED_ALIASES } from '@/mirror/alias';
-import { GitLfsRepository } from '@/mirror/repository';
+import { parseManifest } from '@/mirror/manifest';
 import { readFile, writeFile } from 'node:fs/promises';
 import { CONFIG_DIR_NAME } from '@/config/paths';
-import { COMMANDS, BAZEL_FILES, DIRS } from '@/config/constants';
+import { COMMANDS, BAZEL_FILES, DIRS, FILES } from '@/config/constants';
 import { FsSnapshotStore } from '@/inspect/snapshot';
+import type { MirrorManifest } from '@/mirror/models';
 
 export interface CheckoutCliOptions {
   cwd: string;
@@ -34,8 +35,15 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
     return runCustomCheckout(projectDir, alias);
   }
 
+  const objectsDir = join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS);
+
+  // If the alias names a remote in the inner repo, treat it as a URL source
+  // (replace dependency URLs to point at that remote) instead of a branch.
+  if (isRemoteName(objectsDir, alias)) {
+    return runCustomCheckout(projectDir, alias);
+  }
+
   try {
-    const objectsDir = join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS);
     execFileSync('git', ['checkout', alias], { cwd: objectsDir, stdio: 'inherit' });
   } catch {
     format.printResult({ ok: false, error: `Failed to git checkout "${alias}" in inner repo` }, { json: true });
@@ -44,6 +52,58 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
 
   format.printResult({ ok: true, command: COMMANDS.CHECKOUT, alias, message: `Switched to "${alias}" via git checkout, now applying URL patches` }, { json: true });
   return runCustomCheckout(projectDir, alias);
+}
+
+function isRemoteName(objectsDir: string, name: string): boolean {
+  try {
+    const remotes = execFileSync('git', ['remote'], { cwd: objectsDir, encoding: 'utf8', stdio: 'pipe' })
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return remotes.includes(name);
+  } catch {
+    return false;
+  }
+}
+
+function getRemoteUrl(objectsDir: string, name: string): string | null {
+  try {
+    const url = execFileSync('git', ['remote', 'get-url', name], { cwd: objectsDir, encoding: 'utf8', stdio: 'pipe' }).trim();
+    return url.length > 0 ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read manifest.json for URL replacement. Tries the local working tree
+ * first; if absent, fetches the target remote and reads it from FETCH_HEAD.
+ * Returns undefined when no manifest is available.
+ */
+function readRemoteManifest(objectsDir: string, remoteName: string): MirrorManifest | undefined {
+  // 1) Local working-tree manifest (e.g. after inspect -u downloaded objects).
+  try {
+    const localRaw = execFileSync('git', ['show', `HEAD:${FILES.MANIFEST}`], {
+      cwd: objectsDir,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    });
+    return parseManifest(localRaw);
+  } catch {
+    // fall through to remote fetch
+  }
+  // 2) Remote manifest.
+  try {
+    execFileSync('git', ['fetch', remoteName], { cwd: objectsDir, stdio: 'pipe' });
+    const raw = execFileSync(
+      'git',
+      ['show', `FETCH_HEAD:${FILES.MANIFEST}`],
+      { cwd: objectsDir, encoding: 'utf8', stdio: 'pipe' },
+    );
+    return parseManifest(raw);
+  } catch {
+    return undefined;
+  }
 }
 
 async function runCustomCheckout(projectDir: string, alias: string): Promise<number> {
@@ -60,20 +120,16 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
     return EXIT_ERROR;
   }
 
-  const remote = await guard.resolveDefaultRemote(projectDir);
-  if (!remote.ok) {
-    format.printResult({ ok: false, error: remote.error }, { json: true });
-    return EXIT_ERROR;
-  }
+  const objectsDir = join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS);
 
-  const repo = new GitLfsRepository(projectDir, remote.remote.url);
-  let manifest;
-  try {
-    await repo.ensureWorkingClone();
-    const result = await repo.readManifest();
-    manifest = result.manifest;
-  } catch {
-    manifest = undefined;
+  // Load the mirror manifest so original URLs can be restored and remote
+  // targets know the object layout. Prefer the local working tree, then the
+  // origin remote.
+  let manifest: MirrorManifest | undefined;
+  if (isCustomAlias(alias)) {
+    manifest = readRemoteManifest(objectsDir, 'origin');
+  } else {
+    manifest = readRemoteManifest(objectsDir, alias);
   }
 
   const bazelFiles = [...BAZEL_FILES];
@@ -81,6 +137,7 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
   const treeResult = await runCheckoutScan({
     alias,
     manifest,
+    dependencies: snapshot.dependencies.map((d) => ({ name: d.name, sha256: d.sha256, urls: d.urls })),
     resolveTarget: async (a: string) => {
       const resolved = resolveAlias(a);
       if (resolved === RESERVED_ALIASES.DEFAULT) {
@@ -89,11 +146,17 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
       if (resolved === RESERVED_ALIASES.LOCAL) {
         return { type: 'local', baseUrl: `file://${join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS)}` };
       }
-      const profile = await guard.resolveDefaultRemote(projectDir);
-      if (!profile.ok) {
-        throw new Error(profile.error);
+      // Alias names a remote in the inner repo → use its fetch URL.
+      const remoteUrl = getRemoteUrl(objectsDir, a);
+      if (remoteUrl) {
+        return { type: 'remote', baseUrl: remoteUrl };
       }
-      return { type: 'remote', baseUrl: profile.remote.url };
+      // Fallback: assume the alias is a branch; use the default remote URL.
+      const originUrl = getRemoteUrl(objectsDir, 'origin');
+      if (originUrl) {
+        return { type: 'remote', baseUrl: originUrl };
+      }
+      throw new Error(`no remote named "${a}" and no origin remote available`);
     },
     readFiles: async () => {
       const files: Record<string, string> = {};
