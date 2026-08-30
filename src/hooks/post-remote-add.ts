@@ -5,14 +5,21 @@ import { parseRemoteUrl } from '@/hooks/parse-remote-url';
 import { suggestBranchName, formatBranchSuggestion } from '@/hooks/branch-suggestion';
 import { CONFIG_DIR_NAME } from '@/config/paths';
 
+function getOuterRepoUrl(cwd: string): string | null {
+  try {
+    return execFileSync('git', ['remote', 'get-url', 'origin'], { cwd, encoding: 'utf8', stdio: 'pipe' }).trim();
+  } catch {
+    return null;
+  }
+}
+
 export async function postRemoteAdd(exitCode: number, args: string[], cwd: string): Promise<void> {
   if (exitCode !== 0) return;
 
-  const addIdx = args.indexOf('add');
-  if (addIdx === -1 || addIdx + 2 >= args.length) return;
+  const outerUrl = getOuterRepoUrl(cwd);
+  if (!outerUrl) return;
 
-  const url = args[addIdx + 2];
-  const parsed = parseRemoteUrl(url);
+  const parsed = parseRemoteUrl(outerUrl);
   if (!parsed) return;
 
   process.stdout.write(formatBranchSuggestion(parsed.group, parsed.repo) + '\n');
