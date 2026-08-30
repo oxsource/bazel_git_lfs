@@ -58,12 +58,11 @@ export function buildProgram(deps: CliDeps = {}): Command {
       'Discover the current project\u2019s remote HTTP dependencies and persist the snapshot (JSON)',
     )
     .option('-f, --force', 'force re-scan even if cached snapshot exists')
-    .option('-v, --verbose', 'show scan progress')
     .option('-u, --update', 'download missing dependencies')
     .option('--json', 'output machine-readable JSON')
     .allowExcessArguments(false)
-    .action(async (options: { force?: boolean; verbose?: boolean; update?: boolean; json?: boolean }) => {
-      process.exitCode = await runInspect({ cwd, force: Boolean(options.force), verbose: Boolean(options.verbose), update: Boolean(options.update), json: Boolean(options.json) });
+    .action(async (options: { force?: boolean; update?: boolean; json?: boolean }) => {
+      process.exitCode = await runInspect({ cwd, force: Boolean(options.force), update: Boolean(options.update), json: Boolean(options.json) });
     });
 
   program

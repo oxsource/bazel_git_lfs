@@ -14,15 +14,12 @@ import { sha256 } from '@/objects/sha256';
 export interface InspectOptions {
   cwd: string;
   force?: boolean;
-  verbose?: boolean;
   update?: boolean;
   json?: boolean;
 }
 
-function log(opts: InspectOptions, msg: string): void {
-  if (opts.verbose) {
-    process.stderr.write(`[inspect] ${msg}\n`);
-  }
+function say(msg: string): void {
+  process.stderr.write(msg + '\n');
 }
 
 function printTable(result: InspectResult): void {
@@ -50,7 +47,7 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
 
   for (const dep of result.dependencies) {
     if (!dep.sha256 || !sha256.isHex(dep.sha256)) {
-      log(opts, `Skipping "${dep.name}" — no SHA256`);
+      say(`  Skipping "${dep.name}" — no SHA256`);
       continue;
     }
 
@@ -58,11 +55,11 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
     const absPath = join(objectsDir, relPath);
 
     if (existsSync(absPath)) {
-      log(opts, `  "${dep.name}" — already exists`);
+      say(`  "${dep.name}" — already exists`);
       continue;
     }
 
-    log(opts, `  Downloading "${dep.name}"...`);
+    say(`Downloading ${dep.name}...`);
 
     let downloaded = false;
     for (const url of dep.urls) {
@@ -72,13 +69,13 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
         const buf = Buffer.from(await response.arrayBuffer());
         const actual = sha256.hexOfBuffer(buf);
         if (actual !== dep.sha256) {
-          log(opts, `    SHA256 mismatch for ${url}, trying next URL`);
+          say(`  SHA256 mismatch for ${url}, trying next URL`);
           continue;
         }
         mkdirSync(dirname(absPath), { recursive: true });
         writeFileSync(absPath, buf);
         execFileSync('git', ['add', relPath], { cwd: objectsDir, stdio: 'pipe' });
-        log(opts, `    Downloaded and staged: ${relPath}`);
+        say(`  OK ${relPath}`);
         downloaded = true;
         updated++;
         break;
@@ -88,16 +85,16 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
     }
 
     if (!downloaded) {
-      log(opts, `    Failed to download "${dep.name}"`);
+      say(`  FAILED`);
     }
   }
 
   if (updated > 0) {
     try {
       execFileSync('git', ['commit', '-m', `bazel-git-lfs: update ${updated} missing dependenc(y/ies)`], { cwd: objectsDir, stdio: 'pipe' });
-      log(opts, `Committed ${updated} new file(s)`);
+      say(`Committed ${updated} new file(s)`);
     } catch {
-      log(opts, 'No changes to commit');
+      say('No changes to commit');
     }
   }
 }
@@ -131,8 +128,10 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
       } else {
         printTable(result);
       }
+      say('Using cached snapshot (use -f to re-scan).');
     } catch {
-      result = await inspectProject({ projectDir, verbose: opts.verbose });
+      say('Scanning Bazel files...');
+      result = await inspectProject({ projectDir });
       await store.write(projectDir, result);
       if (opts.json) {
         format.printResult({ ok: true, dependencies: result.dependencies, warnings: result.warnings }, { json: true });
@@ -141,7 +140,8 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
       }
     }
   } else {
-    result = await inspectProject({ projectDir, verbose: opts.verbose });
+    say('Scanning Bazel files...');
+    result = await inspectProject({ projectDir });
     await store.write(projectDir, result);
     if (opts.json) {
       format.printResult({ ok: true, dependencies: result.dependencies, warnings: result.warnings }, { json: true });
@@ -151,7 +151,7 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
   }
 
   if (opts.update) {
-    log(opts, 'Checking for missing dependencies...');
+    say('Checking for missing dependencies...');
     await updateMissing(opts, result);
   }
 

@@ -7,7 +7,6 @@ import { InspectResult, emptyInspectResult } from './models';
 export interface InspectProjectOptions {
   projectDir: string;
   useQuery?: boolean;
-  verbose?: boolean;
 }
 
 export async function inspectProject(opts: InspectProjectOptions): Promise<InspectResult> {
@@ -22,8 +21,7 @@ export async function inspectProject(opts: InspectProjectOptions): Promise<Inspe
     throw new Error(`Project directory not readable: ${opts.projectDir}`);
   }
 
-  const verbose = opts.verbose;
-  const log = verbose ? (msg: string) => process.stderr.write(`[inspect] ${msg}\n`) : () => {};
+  const log = (msg: string) => process.stderr.write(`[inspect] ${msg}\n`);
 
   log('Starting dependency scan...');
 
