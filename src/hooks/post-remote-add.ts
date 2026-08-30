@@ -13,8 +13,11 @@ function getOuterRepoUrl(cwd: string): string | null {
   }
 }
 
-export async function postRemoteAdd(exitCode: number, _args: string[], cwd: string): Promise<void> {
+export async function postRemoteAdd(exitCode: number, args: string[], cwd: string): Promise<void> {
   if (exitCode !== 0) return;
+
+  // args = ['remote', 'add', <name>, <url>] from the interceptor passthrough.
+  const remoteName = args[2];
 
   const outerUrl = getOuterRepoUrl(cwd);
   if (!outerUrl) return;
@@ -42,5 +45,19 @@ export async function postRemoteAdd(exitCode: number, _args: string[], cwd: stri
     process.stdout.write(`Switched to new branch "${branch}"\n`);
   } catch (err) {
     process.stderr.write(`warning: failed to create branch "${branch}": ${(err as Error).message}\n`);
+    return;
+  }
+
+  // Set the push upstream so subsequent `bazel-git-lfs push` works without
+  // extra arguments. Configuring branch tracking is safe even when the remote
+  // has no commits yet (no actual push happens here).
+  if (remoteName) {
+    try {
+      execFileSync('git', ['config', `branch.${branch}.remote`, remoteName], { cwd: objectsDir, stdio: 'pipe' });
+      execFileSync('git', ['config', `branch.${branch}.merge`, `refs/heads/${branch}`], { cwd: objectsDir, stdio: 'pipe' });
+      process.stdout.write(`Set upstream "${remoteName}/${branch}" for push\n`);
+    } catch (err) {
+      process.stderr.write(`warning: failed to set upstream for "${branch}": ${(err as Error).message}\n`);
+    }
   }
 }
