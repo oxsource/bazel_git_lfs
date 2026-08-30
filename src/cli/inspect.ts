@@ -119,8 +119,8 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
 
   let result: InspectResult;
 
-  if (!opts.force && existsSync(snapshotPath)) {
-    try {
+  try {
+    if (!opts.force && existsSync(snapshotPath)) {
       const raw = await readFile(snapshotPath, 'utf8');
       result = JSON.parse(raw);
       if (opts.json) {
@@ -129,7 +129,7 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
         printTable(result);
       }
       say('Using cached snapshot (use -f to re-scan).');
-    } catch {
+    } else {
       say('Scanning Bazel files...');
       result = await inspectProject({ projectDir });
       await store.write(projectDir, result);
@@ -139,15 +139,9 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
         printTable(result);
       }
     }
-  } else {
-    say('Scanning Bazel files...');
-    result = await inspectProject({ projectDir });
-    await store.write(projectDir, result);
-    if (opts.json) {
-      format.printResult({ ok: true, dependencies: result.dependencies, warnings: result.warnings }, { json: true });
-    } else {
-      printTable(result);
-    }
+  } catch (err) {
+    format.printResult({ ok: false, error: (err as Error).message }, { json: true });
+    return EXIT_ERROR;
   }
 
   if (opts.update) {
@@ -155,5 +149,12 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
     await updateMissing(opts, result);
   }
 
-  return result.hasConflicts ? EXIT_ERROR : EXIT_OK;
+  if (result.hasConflicts) {
+    say(`Conflicts detected: ${result.conflicts.length} conflicting declaration(s)`);
+    if (opts.json) {
+      format.printResult({ ok: false, error: 'Conflicting declarations detected', conflicts: result.conflicts }, { json: true });
+    }
+    return EXIT_ERROR;
+  }
+  return EXIT_OK;
 }

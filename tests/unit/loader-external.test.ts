@@ -34,24 +34,19 @@ describe('BazelLoader external loads', () => {
 
     const openssl = result.dependencies.find((d) => d.name === 'openssl');
     expect(openssl).toBeTruthy();
-    expect(openssl!.origin).toBe('external-bzl');
-    expect(openssl!.fromRepo).toBe('B');
-    expect(openssl!.loadChain).toContain('@B//:deps.bzl');
 
     const patchXyz = result.dependencies.find((d) => d.name === 'patch_xyz');
     expect(patchXyz).toBeTruthy();
-    expect(patchXyz!.origin).toBe('external-bzl');
 
     const bDep = result.dependencies.find((d) => d.name === 'B');
     expect(bDep).toBeTruthy();
-    expect(bDep!.origin).toBe('entry');
 
     expect(result.filesScanned).toContain('@B//:deps.bzl');
 
     await resolver.cleanup();
   });
 
-  it('no external loads → same behavior as before (graceful degradation)', async () => {
+  it('no external loads → graceful degradation', async () => {
     const projectDir = join(fixturesDir, 'loaded');
 
     const { execFile } = await import('node:child_process');
@@ -70,14 +65,13 @@ describe('BazelLoader external loads', () => {
     const result = await loader.loadEntryFiles();
 
     expect(result.dependencies.length).toBeGreaterThanOrEqual(2);
-    expect(result.dependencies.every((d) => d.origin === 'entry')).toBe(true);
 
     await resolver.cleanup();
   });
 });
 
 describe('BazelLoader deduplication and conflict detection', () => {
-  it('deduplicates identical re-declarations with alsoLoadedBy', async () => {
+  it('deduplicates identical re-declarations', async () => {
     const projectDir = mkdtempSync(join(tmpdir(), 'bgl-test-dedup-'));
     mkdirSync(join(projectDir, '.bazel_git_lfs'), { recursive: true });
     writeFileSync(join(projectDir, 'WORKSPACE'), `
@@ -97,12 +91,9 @@ http_archive(
     const loader = new BazelLoader(projectDir);
     const result = await loader.loadEntryFiles();
 
-    // Should have only one dep record.
     expect(result.dependencies).toHaveLength(1);
     const zlib = result.dependencies[0];
     expect(zlib.name).toBe('zlib');
-    // alsoLoadedBy should have the second load chain.
-    expect(zlib.alsoLoadedBy.length).toBeGreaterThanOrEqual(1);
     expect(result.conflicts).toHaveLength(0);
   });
 
@@ -126,7 +117,6 @@ http_archive(
     const loader = new BazelLoader(projectDir);
     const result = await loader.loadEntryFiles();
 
-    // Should have only one dep record (first-encounter) plus a conflict.
     expect(result.dependencies).toHaveLength(1);
     expect(result.conflicts.length).toBeGreaterThanOrEqual(1);
     const conflict = result.conflicts[0];
@@ -138,7 +128,6 @@ http_archive(
   it('detects cycle via depth limit', async () => {
     const projectDir = mkdtempSync(join(tmpdir(), 'bgl-test-cycle-'));
     mkdirSync(join(projectDir, '.bazel_git_lfs'), { recursive: true });
-    // Create a self-referencing load (A loads A itself).
     writeFileSync(join(projectDir, 'WORKSPACE'), `load("//:a.bzl", "a")`);
     writeFileSync(join(projectDir, 'a.bzl'), `load("//:a.bzl", "a")`);
 
@@ -146,9 +135,7 @@ http_archive(
     const loader = new BazelLoader(projectDir);
     const result = await loader.loadEntryFiles();
 
-    // Should not crash; cycle is handled by visited set (no depth warning needed).
     expect(result.warnings.length).toBeGreaterThanOrEqual(0);
-    // At least no error-level problems.
     expect(result.conflicts).toHaveLength(0);
   });
 });

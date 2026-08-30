@@ -2,14 +2,13 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { guard } from '@/cli/common';
 import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
-import { runCheckoutScan, writeCheckoutState, removeCheckoutState, isNonDefaultCheckout, runExternalDepCheckout, PatchState } from '@/mirror/checkout';
+import { runCheckoutScan, writeCheckoutState, removeCheckoutState, isNonDefaultCheckout } from '@/mirror/checkout';
 import { resolveAlias, RESERVED_ALIASES } from '@/mirror/alias';
 import { GitLfsRepository } from '@/mirror/repository';
 import { readFile, writeFile } from 'node:fs/promises';
 import { CONFIG_DIR_NAME } from '@/config/paths';
 import { COMMANDS, BAZEL_FILES, DIRS } from '@/config/constants';
 import { FsSnapshotStore } from '@/inspect/snapshot';
-import { Dependency } from '@/inspect/models';
 
 export interface CheckoutCliOptions {
   cwd: string;
@@ -31,12 +30,10 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
     return EXIT_ERROR;
   }
 
-  // If it's a custom alias (--/@), use custom URL replacement logic directly.
   if (isCustomAlias(alias)) {
     return runCustomCheckout(projectDir, alias);
   }
 
-  // Otherwise, it's a branch/remote name: first git checkout, then custom patch.
   try {
     const objectsDir = join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS);
     execFileSync('git', ['checkout', alias], { cwd: objectsDir, stdio: 'inherit' });
@@ -45,7 +42,6 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
     return EXIT_ERROR;
   }
 
-  // After git checkout, apply the custom URL replacement/patch logic.
   format.printResult({ ok: true, command: COMMANDS.CHECKOUT, alias, message: `Switched to "${alias}" via git checkout, now applying URL patches` }, { json: true });
   return runCustomCheckout(projectDir, alias);
 }
@@ -118,48 +114,13 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
     },
   });
 
-  const entryFiles: Record<string, string> = {};
-  for (const name of bazelFiles) {
-    const filePath = join(projectDir, name);
-    try {
-      entryFiles[name] = await readFile(filePath, 'utf8');
-    } catch {
-      // skip
-    }
-  }
-
-  const conflictedRepos = new Set(snapshot.conflicts.map((c) => c.repo));
-  const externalDeps: Dependency[] = snapshot.dependencies.filter((d) => d.origin === 'external-bzl');
-
-  const { patches, skipped } = await runExternalDepCheckout(
-    projectDir,
-    alias,
-    manifest,
-    async (a: string) => {
-      const resolved = resolveAlias(a);
-      if (resolved === RESERVED_ALIASES.DEFAULT) return { type: 'original', baseUrl: '' };
-      if (resolved === RESERVED_ALIASES.LOCAL) return { type: 'local', baseUrl: `file://${join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS)}` };
-      return { type: 'remote', baseUrl: remote.remote.url };
-    },
-    entryFiles,
-    async (filePath: string, content: string) => {
-      const absPath = join(projectDir, filePath);
-      await writeFile(absPath, content, 'utf8');
-    },
-    externalDeps,
-    conflictedRepos,
-    snapshot,
-  );
-
-  const allChanged = treeResult.changed + patches.reduce((sum, p) => sum + p.changes.length, 0);
+  const allChanged = treeResult.changed;
   const output = {
     ok: treeResult.ok,
     command: COMMANDS.CHECKOUT,
     alias: treeResult.alias,
     target: treeResult.target,
     changes: treeResult.changes,
-    patches: patches.length > 0 ? patches : undefined,
-    skipped: skipped.length > 0 ? skipped : undefined,
     changed: allChanged,
     unchanged: treeResult.unchanged,
     error: treeResult.error,
@@ -168,14 +129,8 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
   format.printResult(output, { json: true });
 
   if (treeResult.ok && allChanged > 0) {
-    const statePatches: PatchState[] = patches.map((p) => ({
-      repo: p.repo,
-      injectedIn: p.injectedIn,
-      command: '',
-      patchFile: p.patchFile,
-    }));
     if (isNonDefaultCheckout(alias)) {
-      await writeCheckoutState(projectDir, alias, statePatches.length > 0 ? statePatches : undefined);
+      await writeCheckoutState(projectDir, alias);
     } else {
       await removeCheckoutState(projectDir);
     }

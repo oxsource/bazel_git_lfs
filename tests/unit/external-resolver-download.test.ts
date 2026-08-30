@@ -13,7 +13,6 @@ describe('ExternalResolver download fallback', () => {
     const result = await resolver.resolve('B', {
       name: 'B', urls: ['https://example.org/B.tar.gz'], sha256: null,
       stripPrefix: null, sourceFile: 'WORKSPACE', resolved: true,
-      origin: 'entry' as const, fromRepo: null, loadChain: [], alsoLoadedBy: [],
     });
     expect(result.status).toBe('unresolved');
     await resolver.cleanup();
@@ -39,7 +38,6 @@ describe('ExternalResolver download fallback', () => {
         sha256: 'eb2d14519eebc28edff8201a03cddbd12794fab5391935af61bcbc56f3a45a2d',
         stripPrefix: 'B-1.0',
         sourceFile: 'WORKSPACE', resolved: true,
-        origin: 'entry' as const, fromRepo: null, loadChain: [], alsoLoadedBy: [],
       });
 
       expect(result.status).toBe('fallback');

@@ -61,7 +61,7 @@ export class BazelLoader {
     for (const name of entryFiles) {
       const path = join(this.projectDir, name);
       this.log(`Scanning ${name}...`);
-      const depsIn = await this.loadFile(path, name, [], 0);
+      const depsIn = await this.loadFile(path, name, 0);
       deps.push(...depsIn.dependencies);
       warnings.push(...depsIn.warnings);
       if (depsIn.filesScanned.length > 0) {
@@ -75,7 +75,6 @@ export class BazelLoader {
   private async loadFile(
     absPath: string,
     displayName: string,
-    loadChain: string[],
     depth: number,
   ): Promise<LoadedFileResult> {
     if (this.visited.has(absPath)) {
@@ -136,8 +135,7 @@ export class BazelLoader {
           norm,
         );
         if (differing.length === 0) {
-          // Identical content — deduplicate. Append loadChain to the existing dep.
-          existing.dep.alsoLoadedBy = [...existing.dep.alsoLoadedBy, [...loadChain]];
+          // Identical content — deduplicate.
         } else {
           // Divergent — conflict.
           this.conflicts.push({
@@ -177,7 +175,6 @@ export class BazelLoader {
         const sub = await this.loadFile(
           loadedPath,
           normalize(loadedDisplay),
-          loadChain,
           depth + 1,
         );
         deps.push(...sub.dependencies);
@@ -207,22 +204,11 @@ export class BazelLoader {
       const externalBzlPath = normalize(join(resolution.rootDir, target.path));
       const externalDisplayName = load.target;
 
-      const newChain = [...loadChain, load.target];
       const sub = await this.loadFile(
         externalBzlPath,
         externalDisplayName,
-        newChain,
         depth + 1,
       );
-
-      // Tag each dep discovered from this external bzl with provenance.
-      for (const dep of sub.dependencies) {
-        if (dep.origin === 'entry') {
-          dep.origin = 'external-bzl';
-          dep.fromRepo = target.repo;
-          dep.loadChain = newChain;
-        }
-      }
 
       deps.push(...sub.dependencies);
       warnings.push(...sub.warnings);

@@ -119,10 +119,6 @@ function buildDependency(
     stripPrefix: typeof stripPrefix === 'string' ? stripPrefix : null,
     sourceFile,
     resolved: true,
-    origin: 'entry',
-    fromRepo: null,
-    loadChain: [],
-    alsoLoadedBy: [],
   };
 }
 
