@@ -1,10 +1,11 @@
+import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
 import { guard } from '@/cli/common';
 import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
 import { runCheckoutScan, writeCheckoutState, removeCheckoutState, isNonDefaultCheckout, runExternalDepCheckout, PatchState } from '@/mirror/checkout';
 import { resolveAlias, RESERVED_ALIASES } from '@/mirror/alias';
 import { GitLfsRepository } from '@/mirror/repository';
 import { readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { CONFIG_DIR_NAME } from '@/config/paths';
 import { COMMANDS, BAZEL_FILES, DIRS } from '@/config/constants';
 import { FsSnapshotStore } from '@/inspect/snapshot';
@@ -13,6 +14,11 @@ import { Dependency } from '@/inspect/models';
 export interface CheckoutCliOptions {
   cwd: string;
   alias: string;
+}
+
+function isCustomAlias(alias: string): boolean {
+  const resolved = resolveAlias(alias);
+  return resolved === RESERVED_ALIASES.DEFAULT || resolved === RESERVED_ALIASES.LOCAL;
 }
 
 export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<number> {
@@ -25,11 +31,29 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
     return EXIT_ERROR;
   }
 
-  // Read snapshot for external-dep info and conflict checking.
+  // If it's a custom alias (--/@), use custom URL replacement logic directly.
+  if (isCustomAlias(alias)) {
+    return runCustomCheckout(projectDir, alias);
+  }
+
+  // Otherwise, it's a branch/remote name: first git checkout, then custom patch.
+  try {
+    const objectsDir = join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS);
+    execFileSync('git', ['checkout', alias], { cwd: objectsDir, stdio: 'inherit' });
+  } catch {
+    format.printResult({ ok: false, error: `Failed to git checkout "${alias}" in inner repo` }, { json: true });
+    return EXIT_ERROR;
+  }
+
+  // After git checkout, apply the custom URL replacement/patch logic.
+  format.printResult({ ok: true, command: COMMANDS.CHECKOUT, alias, message: `Switched to "${alias}" via git checkout, now applying URL patches` }, { json: true });
+  return runCustomCheckout(projectDir, alias);
+}
+
+async function runCustomCheckout(projectDir: string, alias: string): Promise<number> {
   const store = new FsSnapshotStore();
   const snapshot = await store.read(projectDir);
 
-  // Reject checkout if the snapshot has unresolved conflicts (FR-015).
   if (snapshot.hasConflicts) {
     const detail = snapshot.conflicts.map((c) => `"${c.repo}": ${c.adopted.sourceFile} vs ${c.divergent.sourceFile} (differing: ${c.differingFields.join(', ')})`).join('; ');
     format.printResult({
@@ -58,7 +82,6 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
 
   const bazelFiles = [...BAZEL_FILES];
 
-  // Run project-tree checkout (Stage 5 behavior).
   const treeResult = await runCheckoutScan({
     alias,
     manifest,
@@ -83,7 +106,7 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
         try {
           files[name] = await readFile(filePath, 'utf8');
         } catch {
-          // file doesn't exist, skip
+          // skip
         }
       }
       return files;
@@ -95,7 +118,6 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
     },
   });
 
-  // Run external-dep checkout (Phase 5 patch injection).
   const entryFiles: Record<string, string> = {};
   for (const name of bazelFiles) {
     const filePath = join(projectDir, name);
@@ -129,7 +151,6 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
     snapshot,
   );
 
-  // Combine results.
   const allChanged = treeResult.changed + patches.reduce((sum, p) => sum + p.changes.length, 0);
   const output = {
     ok: treeResult.ok,
@@ -146,12 +167,11 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
 
   format.printResult(output, { json: true });
 
-  // Update checkout state with patch info.
   if (treeResult.ok && allChanged > 0) {
     const statePatches: PatchState[] = patches.map((p) => ({
       repo: p.repo,
       injectedIn: p.injectedIn,
-      command: '', // not stored in state for brevity; reconstructed on restore
+      command: '',
       patchFile: p.patchFile,
     }));
     if (isNonDefaultCheckout(alias)) {

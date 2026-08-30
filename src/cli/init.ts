@@ -3,9 +3,8 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { paths, CONFIG_DIR_NAME } from '@/config/paths';
 import { format, EXIT_OK, EXIT_ERROR, OutputOptions } from '@/cli/format';
-import { readCheckoutState } from '@/mirror/checkout';
 import { RESERVED_ALIASES } from '@/mirror/alias';
-import { COMMANDS, TOOL_NAME, FILES } from '@/config/constants';
+import { TOOL_NAME, FILES } from '@/config/constants';
 
 const GITIGNORE_ENTRY = '.bazel_git_lfs/';
 
@@ -31,6 +30,7 @@ export interface InitOptions extends OutputOptions {
 export async function runInit(opts: InitOptions): Promise<number> {
   const dir = paths.projectConfigDir(opts.cwd);
   const gitIgnorePath = join(opts.cwd, '.gitignore');
+  const objectsDir = join(dir, 'objects');
 
   try {
     await mkdir(dir, { recursive: true });
@@ -39,22 +39,36 @@ export async function runInit(opts: InitOptions): Promise<number> {
     return EXIT_ERROR;
   }
 
+  try {
+    await mkdir(objectsDir, { recursive: true });
+  } catch (err) {
+    format.printError(`Cannot create objects directory at ${objectsDir}: ${(err as Error).message}`, opts);
+    return EXIT_ERROR;
+  }
+
+  try {
+    execFileSync('git', ['init'], { cwd: objectsDir, stdio: 'pipe' });
+  } catch (err) {
+    format.printError(`Failed to initialize git repo in ${objectsDir}: ${(err as Error).message}`, opts);
+    return EXIT_ERROR;
+  }
+
+  try {
+    execFileSync('git', ['lfs', 'track', '*'], { cwd: objectsDir, stdio: 'pipe' });
+  } catch {
+    // git-lfs not installed — non-fatal, LFS tracking can be added later
+  }
+
   if (isGitRepo(opts.cwd)) {
     await ensureGitIgnore(gitIgnorePath, opts);
     await installPreCommitHook(opts.cwd);
   }
 
-  const warnings: string[] = [];
-
-  const state = await readCheckoutState(opts.cwd);
-  if (state) {
-    warnings.push(`Non-default checkout detected (alias: "${state.alias}"). Run "${TOOL_NAME} ${COMMANDS.CHECKOUT} ${RESERVED_ALIASES.DEFAULT}" to restore original URLs before committing.`);
-  }
-
-  const result: Record<string, unknown> = { ok: true, configPath: dir, message: `Initialized config area at ${dir}` };
-  if (warnings.length > 0) {
-    result.warnings = warnings;
-  }
+  const result: Record<string, unknown> = {
+    ok: true,
+    configPath: dir,
+    message: `Initialized config area at ${dir} with inner git repo at ${objectsDir}`,
+  };
   format.printResult(result, opts);
   return EXIT_OK;
 }
@@ -74,7 +88,7 @@ async function installPreCommitHook(cwd: string): Promise<void> {
   try {
     await writeFile(hookPath, PRE_COMMIT_HOOK, { mode: 0o755 });
   } catch {
-    // non-fatal: hook installation is best-effort
+    // non-fatal
   }
 }
 
@@ -84,7 +98,7 @@ async function ensureGitIgnore(gitIgnorePath: string, opts: InitOptions): Promis
     try {
       content = await readFile(gitIgnorePath, 'utf8');
     } catch {
-      // missing .gitignore is fine; will create it
+      // missing .gitignore is fine
     }
 
     if (content.includes(GITIGNORE_ENTRY)) {

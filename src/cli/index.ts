@@ -2,38 +2,38 @@
 import { Command } from 'commander';
 import { runInit } from '@/cli/init';
 import { runInspect } from '@/cli/inspect';
-import { runFetchCommand } from '@/cli/fetch';
-import { runPullCommand } from '@/cli/pull';
-import { runPushCommand } from '@/cli/push';
-import { runStatusCommand } from '@/cli/status';
 import { runCleanCommand } from '@/cli/clean';
 import { runCheckoutCommand } from '@/cli/checkout';
-import { RESERVED_ALIASES } from '@/mirror/alias';
-import {
-  runRemoteAdd,
-  runRemoteSetDefault,
-  runRemoteRemove,
-  runRemoteList,
-  runRemoteAliasAdd,
-  runRemoteAliasList,
-  runRemoteAliasRemove,
-} from '@/cli/remote';
-import { format, OutputOptions } from '@/cli/format';
-import { COMMANDS, REMOTE_SUBCOMMANDS, ALIAS_SUBCOMMANDS, TOOL_NAME } from '@/config/constants';
+import { handle, registerCommand } from '@/cli/interceptor';
+import { format } from '@/cli/format';
+import { COMMANDS, TOOL_NAME } from '@/config/constants';
+import { postRemoteAdd } from '@/hooks/post-remote-add';
 
 const VERSION: string = __BGL_VERSION__;
-
-const STUB_COMMANDS: readonly string[] = [];
 
 export interface CliDeps {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
 }
 
+const CUSTOM_COMMANDS: ReadonlySet<string> = new Set([
+  COMMANDS.INIT,
+  COMMANDS.INSPECT,
+  COMMANDS.CLEAN,
+  COMMANDS.CHECKOUT,
+]);
+
+registerCommand(COMMANDS.REMOTE, {
+  post: postRemoteAdd,
+});
+
+function isHelpOrVersion(arg: string): boolean {
+  return arg === '--help' || arg === '-h' || arg === '--version' || arg === '-V';
+}
+
 export function buildProgram(deps: CliDeps = {}): Command {
   const program = new Command();
   const cwd = deps.cwd ?? process.cwd();
-  const env = deps.env ?? process.env;
 
   program
     .name(TOOL_NAME)
@@ -48,7 +48,7 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .command(COMMANDS.INIT)
     .description('Initialize a non-versioned .bazel_git_lfs config area in the current project')
     .option('--json', 'output machine-readable JSON')
-    .action(async (options: OutputOptions) => {
+    .action(async (options: { json?: boolean }) => {
       process.exitCode = await runInit({ json: Boolean(options.json), cwd });
     });
 
@@ -57,63 +57,16 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .description(
       'Discover the current project\u2019s remote HTTP dependencies and persist the snapshot (JSON)',
     )
+    .option('-f, --force', 'force re-scan even if cached snapshot exists')
     .allowExcessArguments(false)
-    .action(async () => {
-      process.exitCode = await runInspect({ cwd });
-    });
-
-  program
-    .command(COMMANDS.FETCH)
-    .description(
-      'Download snapshot dependencies from their source URLs into the local objects store (JSON)',
-    )
-    .allowExcessArguments(false)
-    .action(async () => {
-      process.exitCode = await runFetchCommand({ cwd });
-    });
-
-  program
-    .command(COMMANDS.PUSH)
-    .description(
-      'Upload local objects to the configured Git LFS mirror, update the manifest, commit and push (JSON)',
-    )
-    .allowExcessArguments(false)
-    .action(async () => {
-      process.exitCode = await runPushCommand({ cwd, env });
-    });
-
-  program
-    .command(COMMANDS.PULL)
-    .description(
-      'Transfer snapshot dependencies from the configured Git LFS mirror into the local objects store (JSON)',
-    )
-    .allowExcessArguments(false)
-    .action(async () => {
-      process.exitCode = await runPullCommand({ cwd, env });
-    });
-
-  program
-    .command(COMMANDS.STATUS)
-    .description(
-      'Check every mirrored artifact\u2019s SHA256 against the manifest and report valid/corrupt/missing (JSON)',
-    )
-    .option('--sha256-prefix <hex>', 'filter by SHA256 prefix (case-insensitive)')
-    .option('--source-url <substring>', 'filter by source URL substring (case-insensitive)')
-    .argument('[keyword]', 'search keyword across artifact names, paths, and URLs')
-    .allowExcessArguments(false)
-    .action(async (keyword: string | undefined, options: { sha256Prefix?: string; sourceUrl?: string }) => {
-      process.exitCode = await runStatusCommand({
-        cwd,
-        sha256Prefix: options.sha256Prefix,
-        sourceUrl: options.sourceUrl,
-        keyword,
-      });
+    .action(async (options: { force?: boolean }) => {
+      process.exitCode = await runInspect({ cwd, force: Boolean(options.force) });
     });
 
   program
     .command(COMMANDS.CLEAN)
     .description(
-      'Remove local objects store, mirror working clone, and snapshot; preserve config (JSON)',
+      'Remove the .bazel_git_lfs directory entirely',
     )
     .allowExcessArguments(false)
     .action(async () => {
@@ -125,159 +78,56 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .description(
       'Switch dependency URLs between original, local, or remote mirror sources based on the alias (JSON)',
     )
-    .argument('<alias>', 'target alias: default/-- (original), local/@ (file://), or a profile name')
+    .argument('<alias>', 'target alias: default/-- (original), local/@ (file://), or a branch name')
     .allowExcessArguments(false)
     .action(async (alias: string) => {
       process.exitCode = await runCheckoutCommand({ cwd, alias });
     });
 
-  const remote = program.command(COMMANDS.REMOTE).description('Manage mirror-repository profiles');
-  remote
-    .command(REMOTE_SUBCOMMANDS.ADD)
-    .description('Add or update a mirror profile')
-    .option('--global', 'write to the global (user home) config instead of project-local')
-    .option('--alias <name>', `profile alias (default: ${RESERVED_ALIASES.DEFAULT})`)
-    .option('--url <url>', 'mirror repository URL (may be @alias)')
-    .option('--json', 'output machine-readable JSON')
-    .action(async (options: RemoteAddCliOptions) => {
-      const code = await runRemoteAdd({
-        json: Boolean(options.json),
-        global: Boolean(options.global),
-        alias: options.alias,
-        url: options.url,
-        cwd,
-        env,
-      });
-      process.exitCode = code;
-    });
-
-  remote
-    .command(REMOTE_SUBCOMMANDS.SET_DEFAULT)
-    .description('Set the active default profile in the selected scope')
-    .argument('<alias>', 'profile alias')
-    .option('--global', 'target the global (user home) config')
-    .option('--json', 'output machine-readable JSON')
-    .action(async (alias: string, options: RemoteTargetCliOptions) => {
-      const code = await runRemoteSetDefault({
-        json: Boolean(options.json),
-        global: Boolean(options.global),
-        alias,
-        cwd,
-        env,
-      });
-      process.exitCode = code;
-    });
-
-  remote
-    .command(REMOTE_SUBCOMMANDS.REMOVE)
-    .description('Remove a mirror profile from the selected scope')
-    .argument('<alias>', 'profile alias')
-    .option('--global', 'target the global (user home) config')
-    .option('--json', 'output machine-readable JSON')
-    .action(async (alias: string, options: RemoteTargetCliOptions) => {
-      const code = await runRemoteRemove({
-        json: Boolean(options.json),
-        global: Boolean(options.global),
-        alias,
-        cwd,
-        env,
-      });
-      process.exitCode = code;
-    });
-
-  remote
-    .command(REMOTE_SUBCOMMANDS.LIST)
-    .description('List mirror profiles (project-local + global, or with --global only global)')
-    .option('--global', 'list only the global (user home) config')
-    .option('--effective', 'show the merged, actually-in-effect profile')
-    .option('--json', 'output machine-readable JSON')
-    .action(async (options: RemoteListCliOptions) => {
-      const code = await runRemoteList({
-        json: Boolean(options.json),
-        global: Boolean(options.global),
-        effective: Boolean(options.effective),
-        cwd,
-        env,
-      });
-      process.exitCode = code;
-    });
-
-  const alias = remote.command(REMOTE_SUBCOMMANDS.ALIAS).description('Manage the global mirror URL alias table');
-  alias
-    .command(ALIAS_SUBCOMMANDS.ADD)
-    .description('Add or update a global mirror alias')
-    .argument('<name>', 'alias name')
-    .argument('<url>', 'mirror repository URL')
-    .option('--json', 'output machine-readable JSON')
-    .action(async (name: string, url: string, options: OutputOptions) => {
-      const code = await runRemoteAliasAdd({ json: Boolean(options.json), name, url, cwd, env });
-      process.exitCode = code;
-    });
-  alias
-    .command(ALIAS_SUBCOMMANDS.LIST)
-    .description('List all global mirror aliases')
-    .option('--json', 'output machine-readable JSON')
-    .action(async (options: OutputOptions) => {
-      const code = await runRemoteAliasList({ json: Boolean(options.json), cwd, env });
-      process.exitCode = code;
-    });
-  alias
-    .command(ALIAS_SUBCOMMANDS.REMOVE)
-    .description('Remove a global mirror alias')
-    .argument('<name>', 'alias name')
-    .option('--json', 'output machine-readable JSON')
-    .action(async (name: string, options: OutputOptions) => {
-      const code = await runRemoteAliasRemove({ json: Boolean(options.json), name, cwd, env });
-      process.exitCode = code;
-    });
-
-  for (const name of STUB_COMMANDS) {
-    program
-      .command(name)
-      .description(`[not implemented in this stage] ${name}`)
-      .option('--json', 'output machine-readable JSON')
-      .allowUnknownOption(true)
-      .action((options: OutputOptions) => {
-        const msg = `"${name}" is not implemented in this stage.`;
-        if (options.json) {
-          process.stdout.write(JSON.stringify({ ok: false, error: msg }) + '\n');
-        } else {
-          process.stderr.write(`error: ${msg}\n`);
-        }
-        process.exitCode = 1;
-      });
-  }
-
   return program;
 }
 
-interface RemoteAddCliOptions extends OutputOptions {
-  global?: boolean;
-  alias?: string;
-  url?: string;
-}
-
-interface RemoteTargetCliOptions extends OutputOptions {
-  global?: boolean;
-}
-
-interface RemoteListCliOptions extends OutputOptions {
-  global?: boolean;
-  effective?: boolean;
-}
-
 export function run(argv: string[]): void {
-  const program = buildProgram();
-  try {
-    program.parse(argv);
-  } catch (err) {
-    const error = err as { code?: string; message?: string };
-    if (error.code === 'commander.helpDisplayed' || error.code === 'commander.version') {
-      return;
+  const args = argv.slice(2);
+
+  // Show custom command help if no args or help/version.
+  if (args.length === 0 || isHelpOrVersion(args[0])) {
+    const program = buildProgram();
+    try {
+      program.parse(argv);
+    } catch (err) {
+      const error = err as { code?: string; message?: string };
+      if (error.code === 'commander.helpDisplayed' || error.code === 'commander.version') {
+        return;
+      }
     }
-    const message = (error.message ?? 'Unknown error').replace(/^error: /, '');
-    format.printUsageError(message);
+    return;
   }
+
+  // Check if it's a custom command.
+  if (CUSTOM_COMMANDS.has(args[0])) {
+    const program = buildProgram();
+    try {
+      program.parse(argv);
+    } catch (err) {
+      const error = err as { code?: string; message?: string };
+      if (error.code === 'commander.helpDisplayed') {
+        return;
+      }
+      if (error.code === 'commander.version') {
+        return;
+      }
+      const message = (error.message ?? 'Unknown error').replace(/^error: /, '');
+      format.printUsageError(message);
+    }
+    return;
+  }
+
+  // Everything else: delegate to interceptor → git -C .bazel_git_lfs/objects <args>.
+  const cwd = process.cwd();
+  handle(args, cwd).then((code) => {
+    process.exitCode = code;
+  });
 }
 
 if (require.main === module) {
