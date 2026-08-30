@@ -5,6 +5,7 @@ import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
 import { runCheckoutScan, writeCheckoutState, removeCheckoutState, isNonDefaultCheckout } from '@/mirror/checkout';
 import { resolveAlias, RESERVED_ALIASES } from '@/mirror/alias';
 import { parseManifest } from '@/mirror/manifest';
+import { parseRemoteUrl } from '@/hooks/parse-remote-url';
 import { readFile, writeFile } from 'node:fs/promises';
 import { CONFIG_DIR_NAME } from '@/config/paths';
 import { COMMANDS, BAZEL_FILES, DIRS, FILES } from '@/config/constants';
@@ -73,6 +74,54 @@ function getRemoteUrl(objectsDir: string, name: string): string | null {
   } catch {
     return null;
   }
+}
+
+function currentBranch(objectsDir: string): string {
+  try {
+    const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+      cwd: objectsDir,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim();
+    return branch && branch !== 'HEAD' ? branch : 'main';
+  } catch {
+    return 'main';
+  }
+}
+
+/**
+ * Build a raw-file base URL for the remote's hosting platform so objects can
+ * be fetched over HTTPS. The format depends on the remote's host:
+ *   - github.com        → https://media.githubusercontent.com/media/<group>/<repo>/refs/heads/<branch>
+ *   - gitlab.com or *.gitlab.* → https://<host>/<group>/<repo>/-/raw/<branch>
+ *   - gitee.com         → https://gitee.com/<group>/<repo>/raw/<branch>
+ *   - bitbucket.org     → https://bitbucket.org/<group>/<repo>/raw/<branch>
+ *   - other (self-hosted GitLab/Gitea/etc.) → https://<host>/<group>/<repo>/raw/<branch>
+ */
+function remoteFileBaseUrl(objectsDir: string, remoteName: string): string | null {
+  const url = getRemoteUrl(objectsDir, remoteName);
+  if (!url) return null;
+  const parsed = parseRemoteUrl(url);
+  if (!parsed) return null;
+  const branch = currentBranch(objectsDir);
+
+  const host = parsed.host.toLowerCase();
+  const { group, repo } = parsed;
+
+  if (host === 'github.com' || host === 'www.github.com') {
+    return `https://media.githubusercontent.com/media/${group}/${repo}/refs/heads/${branch}`;
+  }
+  if (host === 'gitlab.com' || host === 'www.gitlab.com' || host.includes('gitlab')) {
+    return `https://${parsed.host}/${group}/${repo}/-/raw/${branch}`;
+  }
+  if (host === 'gitee.com' || host === 'www.gitee.com') {
+    return `https://gitee.com/${group}/${repo}/raw/${branch}`;
+  }
+  if (host === 'bitbucket.org' || host === 'www.bitbucket.org') {
+    return `https://bitbucket.org/${group}/${repo}/raw/${branch}`;
+  }
+  // Generic fallback: https://host/group/repo/raw/<branch>
+  return `https://${parsed.host}/${group}/${repo}/raw/${branch}`;
 }
 
 /**
@@ -146,15 +195,15 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
       if (resolved === RESERVED_ALIASES.LOCAL) {
         return { type: 'local', baseUrl: `file://${join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS)}` };
       }
-      // Alias names a remote in the inner repo → use its fetch URL.
-      const remoteUrl = getRemoteUrl(objectsDir, a);
-      if (remoteUrl) {
-        return { type: 'remote', baseUrl: remoteUrl };
+      // Alias names a remote in the inner repo → use its raw-file base URL.
+      const baseUrl = remoteFileBaseUrl(objectsDir, a);
+      if (baseUrl) {
+        return { type: 'remote', baseUrl };
       }
-      // Fallback: assume the alias is a branch; use the default remote URL.
-      const originUrl = getRemoteUrl(objectsDir, 'origin');
-      if (originUrl) {
-        return { type: 'remote', baseUrl: originUrl };
+      // Fallback: assume the alias is a branch; use the origin remote.
+      const originBaseUrl = remoteFileBaseUrl(objectsDir, 'origin');
+      if (originBaseUrl) {
+        return { type: 'remote', baseUrl: originBaseUrl };
       }
       throw new Error(`no remote named "${a}" and no origin remote available`);
     },

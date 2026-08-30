@@ -90,10 +90,12 @@ export interface CheckoutDeps {
 export function findDependencyUrl(
   content: string,
   depName: string,
+  expectedUrl?: string,
 ): string | null {
   const lines = content.split('\n');
   let inBlock = false;
   let currentName = '';
+  const found: string[] = [];
 
   for (const line of lines) {
     const nameMatch = line.match(/name\s*=\s*"([^"]+)"/);
@@ -102,14 +104,45 @@ export function findDependencyUrl(
       inBlock = currentName === depName;
     }
     if (inBlock) {
-      const urlMatch = line.match(/urls?\s*=\s*\[?"?([^"\]]+)"?\]?/);
-      if (urlMatch) return urlMatch[1];
+      // Single value:  url = "https://..." or  urls = "https://..."
+      const single = line.match(/urls?\s*=\s*"([^"]+)"/);
+      if (single) {
+        const u = single[1];
+        if (expectedUrl) {
+          if (u === expectedUrl) return u;
+        } else {
+          found.push(u);
+        }
+      }
+      // Inline array:  urls = ["a", "b"]
+      const inline = line.match(/urls?\s*=\s*\[([^\]]*)\]/);
+      if (inline) {
+        const items = inline[1].match(/"([^"]+)"/g) ?? [];
+        for (const it of items) {
+          const u = it.slice(1, -1);
+          if (expectedUrl) {
+            if (u === expectedUrl) return u;
+          } else {
+            found.push(u);
+          }
+        }
+      }
+      // Array item:      "https://..."
+      const item = line.match(/^\s*"([^"]+)"\s*,?\s*$/);
+      if (item) {
+        const u = item[1];
+        if (expectedUrl) {
+          if (u === expectedUrl) return u;
+        } else {
+          found.push(u);
+        }
+      }
       if (line.includes(')') && !line.includes('name')) {
         inBlock = false;
       }
     }
   }
-  return null;
+  return found.length > 0 ? found[0] : null;
 }
 
 // Exported for testing
@@ -117,6 +150,7 @@ export function replaceDependencyUrl(
   content: string,
   depName: string,
   newUrl: string,
+  expectedUrl?: string,
 ): { changed: boolean; newContent: string } {
   const lines = content.split('\n');
   let inBlock = false;
@@ -130,14 +164,43 @@ export function replaceDependencyUrl(
       inBlock = currentName === depName;
     }
     if (inBlock) {
-      const urlMatch = line.match(/^(\s*urls?\s*=\s*\[?"?)([^"\]]+)/);
-      if (urlMatch) {
-        const before = urlMatch[2];
+      // Single value:  url = "https://..." or  urls = "https://..."
+      const single = line.match(/^(\s*urls?\s*=\s*)("([^"]+)")(.*)$/);
+      if (single) {
+        const before = single[3];
+        if (expectedUrl && before !== expectedUrl) return line;
         if (before !== newUrl) {
           changed = true;
-          const suffix = line.slice(urlMatch[0].length);
-          return `${urlMatch[1]}${newUrl}${suffix}`;
+          return `${single[1]}"${newUrl}"${single[4]}`;
         }
+        return line;
+      }
+      // Inline array:  urls = ["a", "b"]
+      const inline = line.match(/^(\s*urls?\s*=\s*\[)([^\]]*)(\]\s*,?\s*)$/);
+      if (inline) {
+        const items = inline[2].match(/"([^"]+)"/g) ?? [];
+        const replaced = items.map((it) => {
+          const u = it.slice(1, -1);
+          if (expectedUrl && u !== expectedUrl) return it;
+          if (u === newUrl) return it;
+          changed = true;
+          return `"${newUrl}"`;
+        });
+        if (changed) {
+          return `${inline[1]}${replaced.join(', ')}${inline[3]}`;
+        }
+        return line;
+      }
+      // Array item:      "https://..."
+      const item = line.match(/^(\s*)"([^"]+)"(,?\s*)$/);
+      if (item) {
+        const before = item[2];
+        if (expectedUrl && before !== expectedUrl) return line;
+        if (before !== newUrl) {
+          changed = true;
+          return `${item[1]}"${newUrl}"${item[3]}`;
+        }
+        return line;
       }
       if (line.includes(')') && !line.includes('name')) {
         inBlock = false;
@@ -176,7 +239,9 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
 
       let found = false;
       for (const [filePath, content] of Object.entries(files)) {
-        const currentUrl = findDependencyUrl(content, dep.name);
+        // Look up the element matching the manifest's original URL, so array
+        // URLs (urls = [...]) are handled correctly.
+        const currentUrl = findDependencyUrl(content, dep.name, originalUrl);
         if (currentUrl === null) continue;
         found = true;
 
@@ -185,7 +250,7 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
           continue;
         }
 
-        const { changed, newContent } = replaceDependencyUrl(content, dep.name, targetUrl);
+        const { changed, newContent } = replaceDependencyUrl(content, dep.name, targetUrl, originalUrl);
         if (changed) {
           const written = await deps.rewriteFile(filePath, newContent, currentUrl, targetUrl);
           if (written) {
@@ -200,14 +265,15 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
   } else {
     // Local target: iterate over snapshot dependencies directly.
     for (const dep of deps.dependencies) {
-      const currentUrl = dep.urls[0];
-      if (!currentUrl) continue;
-      const fileName = currentUrl.replace(/\/$/, '').split('/').pop() || 'object';
+      // Prefer a non-localhost source URL as the match basis.
+      const originalUrl = dep.urls.find((u) => !u.includes('localhost')) ?? dep.urls[0];
+      if (!originalUrl) continue;
+      const fileName = originalUrl.replace(/\/$/, '').split('/').pop() || 'object';
       const targetUrl = `${target.baseUrl}/${fileName}`;
 
       let found = false;
       for (const [filePath, content] of Object.entries(files)) {
-        const currentInFile = findDependencyUrl(content, dep.name);
+        const currentInFile = findDependencyUrl(content, dep.name, originalUrl);
         if (currentInFile === null) continue;
         found = true;
 
@@ -216,7 +282,7 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
           continue;
         }
 
-        const { changed, newContent } = replaceDependencyUrl(content, dep.name, targetUrl);
+        const { changed, newContent } = replaceDependencyUrl(content, dep.name, targetUrl, originalUrl);
         if (changed) {
           const written = await deps.rewriteFile(filePath, newContent, currentInFile, targetUrl);
           if (written) {
