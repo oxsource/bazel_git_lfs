@@ -238,6 +238,10 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
     error: treeResult.error,
   };
 
+  // Human-readable change list:  name: old -> new
+  for (const change of treeResult.changes) {
+    process.stdout.write(`${change.dependency}: ${change.before} -> ${change.after}\n`);
+  }
   format.printResult(output, { json: true });
 
   if (treeResult.ok && allChanged > 0) {

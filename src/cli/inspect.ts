@@ -7,10 +7,12 @@ import { inspectProject } from '@/inspect/inspector';
 import { InspectResult } from '@/inspect/models';
 import { FsSnapshotStore } from '@/inspect/snapshot';
 import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
-import { COMMANDS, TOOL_NAME, DIRS } from '@/config/constants';
+import { COMMANDS, TOOL_NAME, DIRS, FILES } from '@/config/constants';
 import { guard } from '@/cli/common';
 import { objectRelativePath, objectSha256RelativePath } from '@/objects/object-path';
 import { sha256 } from '@/objects/sha256';
+import { emptyManifest, mergeManifest, serializeManifest, parseManifest } from '@/mirror/manifest';
+import type { ManifestUpdate } from '@/mirror/models';
 
 export interface InspectOptions {
   cwd: string;
@@ -102,6 +104,7 @@ async function downloadWithProgress(
 async function updateMissing(opts: InspectOptions, result: InspectResult): Promise<void> {
   const objectsDir = join(opts.cwd, CONFIG_DIR_NAME, DIRS.OBJECTS);
   let updated = 0;
+  const updates: ManifestUpdate[] = [];
 
   for (const dep of result.dependencies) {
     if (!dep.sha256 || !sha256.isHex(dep.sha256)) {
@@ -112,6 +115,13 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
     const relPath = objectRelativePath(dep.urls[0], dep.sha256);
     const shaRelPath = objectSha256RelativePath(dep.urls[0], dep.sha256);
     const absPath = join(objectsDir, relPath);
+
+    // Every dependency with a valid sha256 contributes to the manifest,
+    // whether the object is already stored or freshly downloaded.
+    const sources = dep.urls.filter((u) => !u.includes('localhost'));
+    if (sources.length > 0) {
+      updates.push({ sha256: dep.sha256, path: relPath, sources });
+    }
 
     if (existsSync(absPath)) {
       say(`  "${dep.name}" — already exists`);
@@ -151,10 +161,39 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
     }
   }
 
-  if (updated > 0) {
+  // Write/merge manifest.json so checkout can map URLs to mirror paths.
+  if (updates.length > 0) {
     try {
-      execFileSync('git', ['commit', '-m', `bazel-git-lfs: update ${updated} missing dependenc(y/ies)`], { cwd: objectsDir, stdio: 'pipe' });
-      say(`Committed ${updated} new file(s)`);
+      let manifest = emptyManifest();
+      try {
+        const existingRaw = execFileSync('git', ['show', `HEAD:${FILES.MANIFEST}`], {
+          cwd: objectsDir,
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+        manifest = parseManifest(existingRaw);
+      } catch {
+        // no existing manifest; start fresh
+      }
+      manifest = mergeManifest(manifest, updates);
+      const manifestPath = join(objectsDir, FILES.MANIFEST);
+      writeFileSync(manifestPath, serializeManifest(manifest));
+      execFileSync('git', ['add', FILES.MANIFEST], { cwd: objectsDir, stdio: 'pipe' });
+      say(`Updated manifest.json with ${updates.length} object(s)`);
+    } catch (err) {
+      say(`Warning: failed to update manifest.json: ${(err as Error).message}`);
+    }
+  }
+
+  // Commit any staged changes (new objects and/or manifest updates).
+  const hasChanges = updated > 0 || updates.length > 0;
+  if (hasChanges) {
+    try {
+      const message = updated > 0
+        ? `bazel-git-lfs: update ${updated} missing dependenc(y/ies)`
+        : 'bazel-git-lfs: update manifest';
+      execFileSync('git', ['commit', '-m', message], { cwd: objectsDir, stdio: 'pipe' });
+      say(`Committed ${updated} new file(s) + manifest`);
     } catch {
       say('No changes to commit');
     }
