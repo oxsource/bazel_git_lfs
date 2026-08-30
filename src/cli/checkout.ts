@@ -125,30 +125,13 @@ function remoteFileBaseUrl(objectsDir: string, remoteName: string): string | nul
 }
 
 /**
- * Read manifest.json for URL replacement. Tries the local working tree
- * first; if absent, fetches the target remote and reads it from FETCH_HEAD.
- * Returns undefined when no manifest is available.
+ * Read manifest.json (non-versioned, at .bazel_git_lfs/manifest.json) for URL
+ * replacement. Returns undefined when absent or unparsable.
  */
-function readRemoteManifest(objectsDir: string, remoteName: string): MirrorManifest | undefined {
-  // 1) Local working-tree manifest (e.g. after inspect -u downloaded objects).
+async function readRemoteManifest(projectDir: string, _remoteName: string): Promise<MirrorManifest | undefined> {
+  const manifestPath = join(projectDir, CONFIG_DIR_NAME, FILES.MANIFEST);
   try {
-    const localRaw = execFileSync('git', ['show', `HEAD:${FILES.MANIFEST}`], {
-      cwd: objectsDir,
-      encoding: 'utf8',
-      stdio: 'pipe',
-    });
-    return parseManifest(localRaw);
-  } catch {
-    // fall through to remote fetch
-  }
-  // 2) Remote manifest.
-  try {
-    execFileSync('git', ['fetch', remoteName], { cwd: objectsDir, stdio: 'pipe' });
-    const raw = execFileSync(
-      'git',
-      ['show', `FETCH_HEAD:${FILES.MANIFEST}`],
-      { cwd: objectsDir, encoding: 'utf8', stdio: 'pipe' },
-    );
+    const raw = await readFile(manifestPath, 'utf8');
     return parseManifest(raw);
   } catch {
     return undefined;
@@ -171,15 +154,9 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
 
   const objectsDir = join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS);
 
-  // Load the mirror manifest so original URLs can be restored and remote
-  // targets know the object layout. Prefer the local working tree, then the
-  // origin remote.
-  let manifest: MirrorManifest | undefined;
-  if (isCustomAlias(alias)) {
-    manifest = readRemoteManifest(objectsDir, 'origin');
-  } else {
-    manifest = readRemoteManifest(objectsDir, alias);
-  }
+  // Load the mirror manifest (non-versioned, at .bazel_git_lfs/manifest.json)
+  // so original URLs can be restored and remote targets know the object layout.
+  const manifest = await readRemoteManifest(projectDir, alias);
 
   const bazelFiles = [...BAZEL_FILES];
 

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -161,39 +161,32 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
     }
   }
 
-  // Write/merge manifest.json so checkout can map URLs to mirror paths.
+  // Write/merge manifest.json (non-versioned, lives in .bazel_git_lfs/) so
+  // checkout can map URLs to mirror paths.
   if (updates.length > 0) {
     try {
       let manifest = emptyManifest();
+      const manifestPath = join(opts.cwd, CONFIG_DIR_NAME, FILES.MANIFEST);
       try {
-        const existingRaw = execFileSync('git', ['show', `HEAD:${FILES.MANIFEST}`], {
-          cwd: objectsDir,
-          encoding: 'utf8',
-          stdio: 'pipe',
-        });
-        manifest = parseManifest(existingRaw);
+        if (existsSync(manifestPath)) {
+          manifest = parseManifest(readFileSync(manifestPath, 'utf8'));
+        }
       } catch {
-        // no existing manifest; start fresh
+        // invalid existing manifest; start fresh
       }
       manifest = mergeManifest(manifest, updates);
-      const manifestPath = join(objectsDir, FILES.MANIFEST);
       writeFileSync(manifestPath, serializeManifest(manifest));
-      execFileSync('git', ['add', FILES.MANIFEST], { cwd: objectsDir, stdio: 'pipe' });
-      say(`Updated manifest.json with ${updates.length} object(s)`);
+      say(`Updated ${FILES.MANIFEST} with ${updates.length} object(s)`);
     } catch (err) {
-      say(`Warning: failed to update manifest.json: ${(err as Error).message}`);
+      say(`Warning: failed to update ${FILES.MANIFEST}: ${(err as Error).message}`);
     }
   }
 
-  // Commit any staged changes (new objects and/or manifest updates).
-  const hasChanges = updated > 0 || updates.length > 0;
-  if (hasChanges) {
+  // Commit staged object files (manifest is non-versioned, so only objects commit).
+  if (updated > 0) {
     try {
-      const message = updated > 0
-        ? `bazel-git-lfs: update ${updated} missing dependenc(y/ies)`
-        : 'bazel-git-lfs: update manifest';
-      execFileSync('git', ['commit', '-m', message], { cwd: objectsDir, stdio: 'pipe' });
-      say(`Committed ${updated} new file(s) + manifest`);
+      execFileSync('git', ['commit', '-m', `bazel-git-lfs: update ${updated} missing dependenc(y/ies)`], { cwd: objectsDir, stdio: 'pipe' });
+      say(`Committed ${updated} new file(s)`);
     } catch {
       say('No changes to commit');
     }

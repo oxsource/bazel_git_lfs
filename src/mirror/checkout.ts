@@ -255,6 +255,8 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
           const written = await deps.rewriteFile(filePath, newContent, currentUrl, targetUrl);
           if (written) {
             changes.push({ file: filePath, dependency: dep.name, before: currentUrl, after: targetUrl });
+            // Accumulate in-memory so later deps in the same file see this change.
+            files[filePath] = newContent;
           }
         } else {
           unchanged++;
@@ -287,6 +289,8 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
           const written = await deps.rewriteFile(filePath, newContent, currentInFile, targetUrl);
           if (written) {
             changes.push({ file: filePath, dependency: dep.name, before: currentInFile, after: targetUrl });
+            // Accumulate in-memory so later deps in the same file see this change.
+            files[filePath] = newContent;
           }
         } else {
           unchanged++;
