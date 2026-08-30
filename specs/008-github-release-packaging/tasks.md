@@ -31,9 +31,9 @@ description: "Task list for Stage 6 — GitHub Wiki Documentation for bazel-git-
 
 **Purpose**: Verify the project builds, confirm GitHub Wiki is enabled, and establish the Wiki page template.
 
-- [ ] T001 Verify existing project builds and tests pass (`npm run build && npm test`)
-- [ ] T002 [P] Confirm GitHub Wiki is enabled for the repository (`https://github.com/oxsource/bazel_git_lfs/wiki`)
-- [ ] T003 [P] Create the Wiki sidebar (`_Sidebar.md`) with links to all planned pages
+- [X] T001 Verify existing project builds and tests pass (`npm run build && npm test`)
+- [X] T002 [P] Confirm GitHub Wiki is enabled for the repository (`https://github.com/oxsource/bazel_git_lfs/wiki`)
+- [X] T003 [P] Create the Wiki sidebar (`_Sidebar.md`) with links to all planned pages
 
 **Checkpoint**: Wiki is ready for content authoring
 
@@ -43,8 +43,8 @@ description: "Task list for Stage 6 — GitHub Wiki Documentation for bazel-git-
 
 **Purpose**: Create the Wiki Home page and establish the navigation structure.
 
-- [ ] T004 [P] [US1] Create `Home.md` Wiki page with project overview, workflow summary, and links to all sections (FR-008)
-- [ ] T005 [P] [US1] Create `Commands.md` index page listing all CLI commands with one-line descriptions and links to sub-pages (FR-003)
+- [X] T004 [P] [US1] Create `Home.md` Wiki page with project overview, workflow summary, and links to all sections (FR-008)
+- [X] T005 [P] [US1] Create `Commands.md` index page listing all CLI commands with one-line descriptions and links to sub-pages (FR-003)
 
 **Checkpoint**: Wiki has a home page and command index; navigation is functional
 
@@ -56,8 +56,8 @@ description: "Task list for Stage 6 — GitHub Wiki Documentation for bazel-git-
 
 **Independent Test**: A developer reads the Installation page and Quickstart page, then completes the workflow end-to-end without errors.
 
-- [ ] T006 [P] [US1] Create `Installation.md` Wiki page covering npm global install, npx usage, version verification, and system requirements (FR-001)
-- [ ] T007 [US1] Create `Quickstart.md` Wiki page with step-by-step tutorial covering init → remote add → inspect → fetch → push → pull → checkout (FR-002)
+- [X] T006 [P] [US1] Create `Installation.md` Wiki page covering npm global install, npx usage, version verification, and system requirements (FR-001)
+- [X] T007 [US1] Create `Quickstart.md` Wiki page with step-by-step tutorial covering init → remote add → inspect → fetch → push → pull → checkout (FR-002)
 
 **Checkpoint**: New users can install and complete the basic workflow
 
@@ -69,15 +69,15 @@ description: "Task list for Stage 6 — GitHub Wiki Documentation for bazel-git-
 
 **Independent Test**: Each command page is manually verified by running `bazel-git-lfs <command> --help` and comparing the documented options against the actual CLI.
 
-- [ ] T008 [P] [US2] Create `Commands/init.md` Wiki page with `init` command documentation (FR-003)
-- [ ] T009 [P] [US2] Create `Commands/remote.md` Wiki page with `remote` command documentation (FR-003)
-- [ ] T010 [P] [US2] Create `Commands/inspect.md` Wiki page with `inspect` command documentation (FR-003)
-- [ ] T011 [P] [US2] Create `Commands/fetch.md` Wiki page with `fetch` command documentation (FR-003)
-- [ ] T012 [P] [US2] Create `Commands/push.md` Wiki page with `push` command documentation (FR-003)
-- [ ] T013 [P] [US2] Create `Commands/pull.md` Wiki page with `pull` command documentation (FR-003)
-- [ ] T014 [P] [US2] Create `Commands/status.md` Wiki page with `status` command documentation (FR-003)
-- [ ] T015 [P] [US2] Create `Commands/clean.md` Wiki page with `clean` command documentation (FR-003)
-- [ ] T016 [P] [US2] Create `Commands/checkout.md` Wiki page with `checkout` command documentation (FR-003)
+- [X] T008 [P] [US2] Create `Commands/init.md` Wiki page with `init` command documentation (FR-003)
+- [X] T009 [P] [US2] Create `Commands/remote.md` Wiki page with `remote` command documentation (FR-003)
+- [X] T010 [P] [US2] Create `Commands/inspect.md` Wiki page with `inspect` command documentation (FR-003)
+- [X] T011 [P] [US2] Create `Commands/fetch.md` Wiki page with `fetch` command documentation (FR-003)
+- [X] T012 [P] [US2] Create `Commands/push.md` Wiki page with `push` command documentation (FR-003)
+- [X] T013 [P] [US2] Create `Commands/pull.md` Wiki page with `pull` command documentation (FR-003)
+- [X] T014 [P] [US2] Create `Commands/status.md` Wiki page with `status` command documentation (FR-003)
+- [X] T015 [P] [US2] Create `Commands/clean.md` Wiki page with `clean` command documentation (FR-003)
+- [X] T016 [P] [US2] Create `Commands/checkout.md` Wiki page with `checkout` command documentation (FR-003)
 
 **Checkpoint**: Full command reference documented; users can look up any command's syntax
 
@@ -89,10 +89,10 @@ description: "Task list for Stage 6 — GitHub Wiki Documentation for bazel-git-
 
 **Independent Test**: Each page is reviewed for technical accuracy against the running CLI and project source code.
 
-- [ ] T017 [P] [US3] Create `Configuration.md` Wiki page covering config file format, profile management, aliases, and environment variables (FR-004)
-- [ ] T018 [P] [US3] Create `Architecture.md` Wiki page explaining objects store, mirror manifest, checkout state, and pre-commit hook (FR-005)
-- [ ] T019 [P] [US3] Create `Troubleshooting.md` Wiki page addressing common errors with causes and resolution steps (FR-006)
-- [ ] T020 [P] [US3] Create `CI-CD.md` Wiki page documenting CI installation, command sequence, JSON output, and exit code conventions (FR-007)
+- [X] T017 [P] [US3] Create `Configuration.md` Wiki page covering config file format, profile management, aliases, and environment variables (FR-004)
+- [X] T018 [P] [US3] Create `Architecture.md` Wiki page explaining objects store, mirror manifest, checkout state, and pre-commit hook (FR-005)
+- [X] T019 [P] [US3] Create `Troubleshooting.md` Wiki page addressing common errors with causes and resolution steps (FR-006)
+- [X] T020 [P] [US3] Create `CI-CD.md` Wiki page documenting CI installation, command sequence, JSON output, and exit code conventions (FR-007)
 
 **Checkpoint**: All eight functional requirements are documented
 
@@ -102,10 +102,10 @@ description: "Task list for Stage 6 — GitHub Wiki Documentation for bazel-git-
 
 **Purpose**: Final verification and quality assurance.
 
-- [ ] T021 Run `bazel-git-lfs --help` and verify every command's --help output matches the Wiki documentation
-- [ ] T022 Verify all cross-page links in the Wiki work correctly (no broken links)
-- [ ] T023 Verify the quickstart tutorial by following it from scratch in a clean environment
-- [ ] T024 Run `npm run build` to ensure no regressions
+- [X] T021 Run `bazel-git-lfs --help` and verify every command's --help output matches the Wiki documentation
+- [X] T022 Verify all cross-page links in the Wiki work correctly (no broken links)
+- [X] T023 Verify the quickstart tutorial by following it from scratch in a clean environment
+- [X] T024 Run `npm run build` to ensure no regressions
 
 ---
 
