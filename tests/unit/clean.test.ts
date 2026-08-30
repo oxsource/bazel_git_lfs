@@ -2,9 +2,10 @@ import { describe, expect, it, afterAll } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runClean } from '@/cli/clean';
+import { runCleanCommand } from '@/cli/clean';
+import { EXIT_OK, EXIT_ERROR } from '@/cli/format';
 
-describe('clean file removal', () => {
+describe('clean command', () => {
   const projects: string[] = [];
 
   afterAll(() => {
@@ -24,48 +25,35 @@ describe('clean file removal', () => {
   function initProject(proj: string): void {
     const bgl = join(proj, '.bazel_git_lfs');
     mkdirSync(join(bgl, 'objects'), { recursive: true });
-    mkdirSync(join(bgl, 'mirror'), { recursive: true });
     writeFileSync(join(bgl, 'config.json'), JSON.stringify({ alias: 'default', url: 'file:///tmp/mirror' }));
     writeFileSync(join(bgl, 'dependencies.json'), JSON.stringify({ projectDir: proj, dependencies: [] }));
     writeFileSync(join(proj, '.gitignore'), '.bazel_git_lfs/\n');
   }
 
-  it('removes objects, mirror, and snapshot while preserving config', async () => {
+  it('removes the entire config area', async () => {
     const proj = makeProject();
     initProject(proj);
 
-    const result = await runClean(proj);
+    const code = await runCleanCommand({ cwd: proj });
 
-    expect(result.ok).toBe(true);
-    expect(result.removed.objects).toBe(true);
-    expect(result.removed.mirror).toBe(true);
-    expect(result.removed.snapshot).toBe(true);
-
+    expect(code).toBe(EXIT_OK);
     const bgl = join(proj, '.bazel_git_lfs');
-    expect(existsSync(join(bgl, 'objects'))).toBe(false);
-    expect(existsSync(join(bgl, 'mirror'))).toBe(false);
-    expect(existsSync(join(bgl, 'dependencies.json'))).toBe(false);
-    expect(existsSync(join(bgl, 'config.json'))).toBe(true);
+    expect(existsSync(bgl)).toBe(false);
   });
 
-  it('is idempotent on an already clean project', async () => {
+  it('reports not-initialized when the config area is missing', async () => {
     const proj = makeProject();
-    initProject(proj);
 
-    await runClean(proj);
-    const result = await runClean(proj);
+    const code = await runCleanCommand({ cwd: proj });
 
-    expect(result.ok).toBe(true);
-    expect(result.removed.objects).toBe(false);
-    expect(result.removed.mirror).toBe(false);
-    expect(result.removed.snapshot).toBe(false);
+    expect(code).toBe(EXIT_ERROR);
   });
 
   it('preserves .gitignore entry', async () => {
     const proj = makeProject();
     initProject(proj);
 
-    await runClean(proj);
+    await runCleanCommand({ cwd: proj });
 
     const gitignore = join(proj, '.gitignore');
     expect(existsSync(gitignore)).toBe(true);

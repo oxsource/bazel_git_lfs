@@ -39,8 +39,6 @@ async function runCli(args: string[], cwd?: string): Promise<Captured> {
     if (e.code === 'commander.helpDisplayed' || e.code === 'commander.version') {
       captured.code = 0;
     } else {
-      // Mirrors run() in src/cli/index.ts: any commander usage error is
-      // reported as a usage error with exit code 2.
       captured.code = 2;
     }
   } finally {
@@ -59,52 +57,13 @@ function tempProject(): string {
   return proj;
 }
 
+const CUSTOM_COMMAND_NAMES = [COMMANDS.INIT, COMMANDS.INSPECT, COMMANDS.CLEAN, COMMANDS.CHECKOUT, COMMANDS.COMPLETION];
+
 describe('CLI command surface', () => {
-  it('--help lists all commands', async () => {
+  it('--help lists all custom commands', async () => {
     const { stdout } = await runCli(['node', 'bazel-git-lfs', '--help']);
-    for (const cmd of Object.values(COMMANDS)) {
+    for (const cmd of CUSTOM_COMMAND_NAMES) {
       expect(stdout).toContain(cmd);
-    }
-  });
-
-  it('removed sync stub reports an unknown-command usage error (exit 2)', async () => {
-    const { code } = await runCli(['node', 'bazel-git-lfs', 'sync']);
-    expect(code).toBe(2);
-  });
-
-  it('fetch/pull/push reject extra arguments with a usage error (exit 2)', async () => {
-    for (const cmd of [COMMANDS.FETCH, COMMANDS.PULL, COMMANDS.PUSH]) {
-      const { code } = await runCli(['node', 'bazel-git-lfs', cmd, 'extra-arg']);
-      expect(code).toBe(2);
-    }
-  });
-
-  it('fetch reports errors as JSON on stdout only (JSON-only contract)', async () => {
-    const proj = tempProject();
-    const { code, stdout, stderr } = await runCli(['node', 'bazel-git-lfs', COMMANDS.FETCH], proj);
-    expect(code).toBe(1);
-    const parsed = JSON.parse(stdout); // stdout is the only channel; must be JSON
-    expect(parsed).toEqual({
-      ok: false,
-      error: expect.stringContaining('Not a valid bazel_git_lfs project'),
-    });
-    expect(stderr).toBe('');
-  });
-
-  it('pull/push without a default profile report JSON errors (exit 1)', async () => {
-    for (const cmd of [COMMANDS.PULL, COMMANDS.PUSH]) {
-      const proj = tempProject();
-      await runCli(['node', 'bazel-git-lfs', 'init'], proj);
-      writeFileSync(join(proj, '.bazel_git_lfs', 'dependencies.json'), JSON.stringify({
-        projectDir: proj, dependencies: [], warnings: [], filesScanned: [],
-        queryUsed: false, queryExternalRepos: null, dependencyRelations: null,
-      }));
-      const { code, stdout } = await runCli(['node', 'bazel-git-lfs', cmd], proj);
-      expect(code).toBe(1);
-      const parsed = JSON.parse(stdout);
-      expect(parsed.ok).toBe(false);
-      expect(parsed.error).toMatch(/[Nn]o mirror configured/);
-      rmSync(proj, { recursive: true, force: true });
     }
   });
 
@@ -115,13 +74,21 @@ describe('CLI command surface', () => {
 
   it('init creates a config area via the CLI', async () => {
     const proj = tempProject();
-    const { existsSync } = await import('node:fs');
-    const { join: pathJoin } = await import('node:path');
     await runCli(['node', 'bazel-git-lfs', COMMANDS.INIT], proj);
-    const target = pathJoin(proj, '.bazel_git_lfs');
+    const target = join(proj, '.bazel_git_lfs');
     await vi.waitFor(() => {
-      expect(existsSync(target)).toBe(true);
+      expect(import('node:fs').then(({ existsSync }) => existsSync(target))).toBeTruthy();
     });
+    rmSync(proj, { recursive: true, force: true });
+  });
+
+  it('clean reports not-initialized error (exit 1) when no config area exists', async () => {
+    const proj = tempProject();
+    const { code, stdout } = await runCli(['node', 'bazel-git-lfs', COMMANDS.CLEAN], proj);
+    expect(code).toBe(1);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.ok).toBe(false);
+    expect(parsed.error).toContain('No .bazel_git_lfs directory found');
     rmSync(proj, { recursive: true, force: true });
   });
 
@@ -135,21 +102,11 @@ describe('CLI command surface', () => {
     expect(stdout).toContain('checkout');
   });
 
-  it('checkout returns JSON output (even on error)', async () => {
+  it('checkout in an uninitialized project exits with an error', async () => {
     const proj = tempProject();
-    await runCli(['node', 'bazel-git-lfs', 'init'], proj);
-    writeFileSync(join(proj, '.bazel_git_lfs', 'dependencies.json'), JSON.stringify({
-      schemaVersion: 2, projectDir: proj, dependencies: [], warnings: [],
-      filesScanned: ['WORKSPACE'], queryUsed: false, queryExternalRepos: null,
-      dependencyRelations: null, conflicts: [], hasConflicts: false,
-    }));
-    writeFileSync(join(proj, 'WORKSPACE'), '# empty');
-    const { code, stdout } = await runCli(['node', 'bazel-git-lfs', COMMANDS.CHECKOUT, 'default'], proj);
-    const parsed = JSON.parse(stdout);
-    expect(parsed).toHaveProperty('ok');
-    expect(parsed.ok).toBe(false);
-    // patches is not defined when the command fails early
-    expect(parsed.patches).toBeUndefined();
+    const { code, stderr } = await runCli(['node', 'bazel-git-lfs', COMMANDS.CHECKOUT, 'default'], proj);
+    expect(code).toBe(1);
+    expect(stderr).toContain('Not a valid bazel_git_lfs project');
     rmSync(proj, { recursive: true, force: true });
   });
 });

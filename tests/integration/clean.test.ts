@@ -58,7 +58,6 @@ function tempProject(): string {
 function initProject(proj: string): void {
   const bgl = join(proj, '.bazel_git_lfs');
   mkdirSync(join(bgl, 'objects'), { recursive: true });
-  mkdirSync(join(bgl, 'mirror'), { recursive: true });
   writeFileSync(join(bgl, 'config.json'), JSON.stringify({ alias: 'default', url: 'file:///tmp/mirror' }));
   writeFileSync(join(bgl, 'dependencies.json'), JSON.stringify({ projectDir: proj, dependencies: [] }));
   writeFileSync(join(proj, '.gitignore'), '.bazel_git_lfs/\n');
@@ -73,7 +72,7 @@ describe('clean command end-to-end', () => {
     }
   });
 
-  it('removes state and preserves config', async () => {
+  it('removes the entire config area', async () => {
     const proj = tempProject();
     projects.push(proj);
     initProject(proj);
@@ -84,13 +83,11 @@ describe('clean command end-to-end', () => {
     const parsed = JSON.parse(stdout);
     expect(parsed.ok).toBe(true);
     expect(parsed.command).toBe('clean');
-    expect(parsed.removed.objects).toBe(true);
 
     const bgl = join(proj, '.bazel_git_lfs');
+    expect(existsSync(bgl)).toBe(false);
     expect(existsSync(join(bgl, 'objects'))).toBe(false);
-    expect(existsSync(join(bgl, 'mirror'))).toBe(false);
-    expect(existsSync(join(bgl, 'dependencies.json'))).toBe(false);
-    expect(existsSync(join(bgl, 'config.json'))).toBe(true);
+    expect(existsSync(join(bgl, 'config.json'))).toBe(false);
   });
 
   it('reports not-initialized error when config area is missing', async () => {
@@ -101,7 +98,7 @@ describe('clean command end-to-end', () => {
     expect(code).toBe(1);
     const parsed = JSON.parse(stdout);
     expect(parsed.ok).toBe(false);
-    expect(parsed.error).toContain('Not a valid bazel_git_lfs project');
+    expect(parsed.error).toContain('No .bazel_git_lfs directory found');
   });
 
   it('rejects extra arguments with a usage error (exit 2)', async () => {
