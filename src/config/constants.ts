@@ -41,7 +41,12 @@ export const FILES = {
   MANIFEST: 'manifest.json',
   CHECKOUT_STATE: 'checkout-state.json',
   GIT_ATTRIBUTES: '.gitattributes',
+  SERVER_PID: 'server.pid',
 };
+
+export const LOCAL_SERVER = {
+  PORT: 8022,
+} as const;
 
 export const BAZEL_FILES = ['WORKSPACE', 'WORKSPACE.bazel', 'MODULE.bazel'] as const;
 

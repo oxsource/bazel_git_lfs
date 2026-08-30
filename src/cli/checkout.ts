@@ -11,10 +11,15 @@ import { CONFIG_DIR_NAME } from '@/config/paths';
 import { BAZEL_FILES, DIRS, FILES } from '@/config/constants';
 import { FsSnapshotStore } from '@/inspect/snapshot';
 import type { MirrorManifest } from '@/mirror/models';
+import { ensureLocalServer, stopLocalServer, isLocalServerRunning, LOCAL_SERVER_PORT } from '@/server/local-server';
 
 export interface CheckoutCliOptions {
   cwd: string;
   alias: string;
+}
+
+function isLocalAlias(alias: string): boolean {
+  return resolveAlias(alias) === RESERVED_ALIASES.LOCAL;
 }
 
 function isCustomAlias(alias: string): boolean {
@@ -30,6 +35,16 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
   if (!g.ok) {
     process.stderr.write(`error: ${g.error}\n`);
     return EXIT_ERROR;
+  }
+
+  // Switching to local source starts the object HTTP server; any other
+  // target stops it. If already running, the server is reused.
+  if (isLocalAlias(alias)) {
+    const baseUrl = await ensureLocalServer(projectDir);
+    process.stdout.write(`Local object server ready: ${baseUrl}\n`);
+  } else if (isLocalServerRunning(projectDir)) {
+    stopLocalServer(projectDir);
+    process.stdout.write('Local object server stopped\n');
   }
 
   if (isCustomAlias(alias)) {
@@ -166,7 +181,7 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
         return { type: 'original', baseUrl: '' };
       }
       if (resolved === RESERVED_ALIASES.LOCAL) {
-        return { type: 'local', baseUrl: `file://${join(projectDir, CONFIG_DIR_NAME, DIRS.OBJECTS)}` };
+        return { type: 'local', baseUrl: `http://localhost:${LOCAL_SERVER_PORT}` };
       }
       // Alias names a remote in the inner repo → use its raw-file base URL.
       const baseUrl = remoteFileBaseUrl(objectsDir, a);

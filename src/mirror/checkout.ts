@@ -159,7 +159,7 @@ export function findDependencyUrl(
     }
   }
   return found.length > 0
-    ? (found.find((u) => !u.includes('localhost')) ?? found[0])
+    ? (found.find((u) => !u.includes('localhost:8080')) ?? found[0])
     : null;
 }
 
@@ -312,11 +312,19 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
   } else {
     // Local target: iterate over snapshot dependencies directly.
     for (const dep of deps.dependencies) {
-      // Prefer a non-localhost source URL as the match basis.
-      const originalUrl = dep.urls.find((u) => !u.includes('localhost')) ?? dep.urls[0];
+      // Prefer a non-8080 source URL as the match basis (8080 is the
+      // original Bazel localhost fallback and is never rewritten).
+      const originalUrl = dep.urls.find((u) => !u.includes('localhost:8080')) ?? dep.urls[0];
       if (!originalUrl) continue;
-      const fileName = originalUrl.replace(/\/$/, '').split('/').pop() || 'object';
-      const targetUrl = `${target.baseUrl}/${fileName}`;
+      // Use the manifest's object path (full path under objects/) when
+      // available; otherwise fall back to the file name.
+      let objectPath: string | undefined;
+      if (dep.sha256 && manifest) {
+        objectPath = manifest.objects[dep.sha256]?.path;
+      }
+      const targetUrl = objectPath
+        ? `${target.baseUrl}/${objectPath}`
+        : `${target.baseUrl}/${originalUrl.replace(/\/$/, '').split('/').pop() || 'object'}`;
 
       let found = false;
       for (const [filePath, content] of Object.entries(files)) {
