@@ -16,7 +16,9 @@ function getOuterRepoUrl(cwd: string): string | null {
 export async function postRemoteAdd(exitCode: number, args: string[], cwd: string): Promise<void> {
   if (exitCode !== 0) return;
 
-  // args = ['remote', 'add', <name>, <url>] from the interceptor passthrough.
+  // args = ['remote', <subcommand>, ...] from the interceptor passthrough.
+  // Only prompt for branch creation on `remote add`.
+  if (args[1] !== 'add') return;
   const remoteName = args[2];
 
   const outerUrl = getOuterRepoUrl(cwd);
