@@ -40,8 +40,8 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
   // Switching to local source starts the object HTTP server; any other
   // target stops it. If already running, the server is reused.
   if (isLocalAlias(alias)) {
-    const baseUrl = await ensureLocalServer(projectDir);
-    process.stdout.write(`Local object server ready: ${baseUrl}\n`);
+    const { baseUrl, pid } = await ensureLocalServer(projectDir);
+    process.stdout.write(`Local object server started: ${baseUrl} (pid ${pid})\n`);
   } else if (isLocalServerRunning(projectDir)) {
     stopLocalServer(projectDir);
     process.stdout.write('Local object server stopped\n');

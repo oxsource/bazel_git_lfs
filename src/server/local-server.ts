@@ -31,14 +31,15 @@ export function isLocalServerRunning(projectDir: string): boolean {
 /**
  * Start the local static file server serving .bazel_git_lfs/objects as a
  * detached background process (so it outlives the CLI). Reuses an already
- * running server. Returns the base URL (e.g. http://localhost:8022).
+ * running server.
  */
-export async function ensureLocalServer(projectDir: string): Promise<string> {
+export async function ensureLocalServer(projectDir: string): Promise<{ baseUrl: string; pid: number }> {
   const objectsDir = join(projectDir, CONFIG_DIR_NAME, 'objects');
   const pidPath = pidFile(projectDir);
 
   if (isLocalServerRunning(projectDir)) {
-    return `http://localhost:${LOCAL_SERVER_PORT}`;
+    const pid = readServerPid(pidPath) ?? 0;
+    return { baseUrl: `http://localhost:${LOCAL_SERVER_PORT}`, pid };
   }
 
   const entry = join(__dirname, 'local-server-entry.js');
@@ -58,7 +59,17 @@ export async function ensureLocalServer(projectDir: string): Promise<string> {
   while (Date.now() < deadline) {
     if (await isPortOpen(LOCAL_SERVER_PORT)) break;
   }
-  return `http://localhost:${LOCAL_SERVER_PORT}`;
+  return { baseUrl: `http://localhost:${LOCAL_SERVER_PORT}`, pid: child.pid ?? 0 };
+}
+
+function readServerPid(pidPath: string): number | null {
+  try {
+    if (!existsSync(pidPath)) return null;
+    const pid = parseInt(readFileSync(pidPath, 'utf8').trim(), 10);
+    return Number.isFinite(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
 }
 
 function isPortOpen(port: number): Promise<boolean> {
