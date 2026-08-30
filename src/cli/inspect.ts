@@ -9,7 +9,7 @@ import { FsSnapshotStore } from '@/inspect/snapshot';
 import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
 import { COMMANDS, TOOL_NAME, DIRS } from '@/config/constants';
 import { guard } from '@/cli/common';
-import { objectRelativePath } from '@/objects/object-path';
+import { objectRelativePath, objectSha256RelativePath } from '@/objects/object-path';
 import { sha256 } from '@/objects/sha256';
 
 export interface InspectOptions {
@@ -110,6 +110,7 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
     }
 
     const relPath = objectRelativePath(dep.urls[0], dep.sha256);
+    const shaRelPath = objectSha256RelativePath(dep.urls[0], dep.sha256);
     const absPath = join(objectsDir, relPath);
 
     if (existsSync(absPath)) {
@@ -133,8 +134,9 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
       try {
         mkdirSync(dirname(absPath), { recursive: true });
         writeFileSync(absPath, result.data);
-        execFileSync('git', ['add', relPath], { cwd: objectsDir, stdio: 'pipe' });
-        say(`  OK ${relPath}`);
+        writeFileSync(join(objectsDir, shaRelPath), dep.sha256 + '\n');
+        execFileSync('git', ['add', relPath, shaRelPath], { cwd: objectsDir, stdio: 'pipe' });
+        say(`  OK ${relPath} (+ ${shaRelPath})`);
         downloaded = true;
         updated++;
         break;

@@ -61,7 +61,7 @@ export class ObjectsStore {
       throw new Error(`invalid sha256 "${shaHex}": expected 64-char lowercase hex`);
     }
     const path = deriveObjectPath(primaryUrl, shaHex);
-    const relativePath = `${path.directory}/${shaHex}`;
+    const relativePath = `${path.directory}/${path.fileName}`;
     return {
       url: primaryUrl,
       sha256: shaHex,

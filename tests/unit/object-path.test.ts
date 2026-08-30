@@ -1,26 +1,40 @@
 import { describe, expect, it } from 'vitest';
-import { deriveObjectPath, objectRelativePath } from '@/objects/object-path';
+import { deriveObjectPath, objectRelativePath, objectSha256RelativePath } from '@/objects/object-path';
 
 const SHA = 'a'.repeat(64);
 
 describe('deriveObjectPath (Maven-style reversed domain)', () => {
-  it('reverses the host and keeps deep URL directories, excluding the filename', () => {
+  it('reverses the host, omits generic segments, and preserves the filename', () => {
     const p = deriveObjectPath(
       'https://github.com/facebook/react/releases/download/v1.2/x.tar.gz',
       SHA,
     );
-    expect(p.directory).toBe('com/github/facebook/react/releases/download/v1.2');
+    expect(p.directory).toBe('com/github/facebook/react/v1.2');
+    expect(p.fileName).toBe('x.tar.gz');
     expect(p.fallback).toBe(false);
+  });
+
+  it('omits common generic path segments (releases/download/archive/...)', () => {
+    expect(
+      deriveObjectPath('https://github.com/opencv/opencv/releases/download/4.10.0/a.zip', SHA).directory,
+    ).toBe('com/github/opencv/opencv/4.10.0');
+    expect(
+      deriveObjectPath('https://github.com/nothings/stb/archive/b42.tar.gz', SHA).directory,
+    ).toBe('com/github/nothings/stb');
   });
 
   it('keeps the org segment when the file sits directly under it', () => {
     expect(deriveObjectPath('https://github.com/facebook/react/react.tar.gz', SHA).directory).toBe(
       'com/github/facebook/react',
     );
+    expect(deriveObjectPath('https://github.com/facebook/react/react.tar.gz', SHA).fileName).toBe(
+      'react.tar.gz',
+    );
   });
 
   it('handles bare-host URLs (no directories beyond the filename)', () => {
     expect(deriveObjectPath('https://example.com/x.tar.gz', SHA).directory).toBe('com/example');
+    expect(deriveObjectPath('https://example.com/x.tar.gz', SHA).fileName).toBe('x.tar.gz');
   });
 
   it('handles multi-level TLDs', () => {
@@ -33,6 +47,7 @@ describe('deriveObjectPath (Maven-style reversed domain)', () => {
     expect(deriveObjectPath('https://GitHub.com/Foo/Bar/file.TGZ', SHA).directory).toBe(
       'com/github/Foo/Bar',
     );
+    expect(deriveObjectPath('https://GitHub.com/Foo/Bar/file.TGZ', SHA).fileName).toBe('file.TGZ');
   });
 
   it('drops empty and dot segments from the path', () => {
@@ -41,6 +56,7 @@ describe('deriveObjectPath (Maven-style reversed domain)', () => {
 
   it('treats trailing-slash paths as pure directories', () => {
     expect(deriveObjectPath('https://example.com/a/b/', SHA).directory).toBe('com/example/a/b');
+    expect(deriveObjectPath('https://example.com/a/b/', SHA).fileName).toBe('object');
   });
 
   it('ignores query strings and fragments', () => {
@@ -77,9 +93,17 @@ describe('deriveObjectPath (Maven-style reversed domain)', () => {
 });
 
 describe('objectRelativePath', () => {
-  it('appends the sha256 as the file name', () => {
+  it('uses the original file name instead of the sha256', () => {
     expect(
       objectRelativePath('https://github.com/facebook/react/x.tar.gz', SHA),
-    ).toBe(`com/github/facebook/react/${SHA}`);
+    ).toBe('com/github/facebook/react/x.tar.gz');
+  });
+});
+
+describe('objectSha256RelativePath', () => {
+  it('appends a .sha256 sidecar next to the object file', () => {
+    expect(
+      objectSha256RelativePath('https://github.com/facebook/react/x.tar.gz', SHA),
+    ).toBe('com/github/facebook/react/x.tar.gz.sha256');
   });
 });

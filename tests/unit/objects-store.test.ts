@@ -17,7 +17,7 @@ describe('ObjectsStore', () => {
   it('derives the Maven-style path and stores buffer content atomically', async () => {
     const store = new ObjectsStore(tempObjectsDir());
     const ref = store.pathFor(URL, SHA);
-    expect(ref.relativePath).toBe(`com/github/facebook/react/${SHA}`);
+    expect(ref.relativePath).toBe('com/github/facebook/react/react.tar.gz');
 
     await store.put(ref, CONTENT);
     expect(readFileSync(ref.absolutePath)).toEqual(CONTENT);
@@ -109,7 +109,7 @@ describe('ObjectsStore', () => {
     const store = new ObjectsStore(tempObjectsDir());
     const ref = store.pathFor('http://10.0.0.1/x.bin', SHA);
     expect(ref.fallback).toBe(true);
-    expect(ref.relativePath).toBe(`_other/10.0.0.1/${SHA}`);
+    expect(ref.relativePath).toBe(`_other/10.0.0.1/x.bin`);
     expect(ref.warning).toMatch(/IP-literal/);
   });
 
