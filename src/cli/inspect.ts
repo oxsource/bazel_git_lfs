@@ -8,6 +8,7 @@ import { InspectResult } from '@/inspect/models';
 import { FsSnapshotStore } from '@/inspect/snapshot';
 import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
 import { COMMANDS, TOOL_NAME, DIRS } from '@/config/constants';
+import { guard } from '@/cli/common';
 import { objectRelativePath } from '@/objects/object-path';
 import { sha256 } from '@/objects/sha256';
 
@@ -100,7 +101,7 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
 }
 
 export async function runInspect(opts: InspectOptions): Promise<number> {
-  const projectDir = opts.cwd;
+  const projectDir = guard.findProjectRoot(opts.cwd) ?? opts.cwd;
   const configDir = paths.projectConfigDir(projectDir);
 
   if (!existsSync(configDir)) {

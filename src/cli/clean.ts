@@ -2,18 +2,20 @@ import { rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { CONFIG_DIR_NAME } from '@/config/paths';
 import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
+import { guard } from '@/cli/common';
 
 export interface CleanCliOptions {
   cwd: string;
 }
 
 export async function runCleanCommand(opts: CleanCliOptions): Promise<number> {
-  const bglDir = join(opts.cwd, CONFIG_DIR_NAME);
-
-  if (!existsSync(bglDir)) {
-    format.printResult({ ok: false, error: `No .bazel_git_lfs directory found at ${bglDir}` }, { json: true });
+  const projectDir = guard.findProjectRoot(opts.cwd);
+  if (!projectDir) {
+    format.printResult({ ok: false, error: `No .bazel_git_lfs directory found` }, { json: true });
     return EXIT_ERROR;
   }
+
+  const bglDir = join(projectDir, CONFIG_DIR_NAME);
 
   try {
     rmSync(bglDir, { recursive: true, force: true });

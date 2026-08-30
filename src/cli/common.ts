@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { resolve, sep } from 'node:path';
 import { paths } from '@/config/paths';
 import { FsProfileStore, ConfigError } from '@/config/store';
 import { ConfigResolver } from '@/config/resolve';
@@ -17,6 +18,22 @@ export interface RemoteInfo {
 }
 
 export type GuardResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Walk up from cwd to find the project root (where .bazel_git_lfs/ exists).
+ * Returns the root path or null if not found.
+ */
+export function findProjectRoot(cwd: string): string | null {
+  let dir = resolve(cwd);
+  const parts = dir.split(sep);
+  for (let i = parts.length; i > 0; i--) {
+    const candidate = parts.slice(0, i).join(sep) || '/';
+    if (existsSync(paths.projectConfigDir(candidate))) {
+      return candidate;
+    }
+  }
+  return null;
+}
 
 /** The initialized-config-area precondition (FR-013). */
 function checkInitialized(projectDir: string): GuardResult {
@@ -49,4 +66,4 @@ async function resolveDefaultRemote(
   }
 }
 
-export const guard = { checkInitialized, checkSnapshot, resolveDefaultRemote };
+export const guard = { checkInitialized, checkSnapshot, resolveDefaultRemote, findProjectRoot };

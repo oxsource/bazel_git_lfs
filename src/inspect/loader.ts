@@ -107,15 +107,14 @@ export class BazelLoader {
     const warnings = [...parsed.warnings];
     const filesScanned = [displayName];
 
-    // Filter out dependencies that reference localhost URLs.
-    const filtered = parsed.dependencies.filter((dep) => {
-      const hasLocalhost = dep.urls.some((u) => u.includes('localhost'));
-      if (hasLocalhost) {
-        warnings.push(`skipping "${dep.name}" — URL contains localhost`);
-        this.log(`  Skipping "${dep.name}" — localhost URL`);
+    // Filter out localhost URLs from each dependency's URL list.
+    const filtered = parsed.dependencies.map((dep) => {
+      const filteredUrls = dep.urls.filter((u) => !u.includes('localhost'));
+      if (filteredUrls.length < dep.urls.length) {
+        this.log(`  Filtered localhost URLs from "${dep.name}"`);
       }
-      return !hasLocalhost;
-    });
+      return { ...dep, urls: filteredUrls };
+    }).filter((dep) => dep.urls.length > 0);
 
     // First-encounter bookkeeping: deduplicate and detect conflicts.
     for (const dep of filtered) {
