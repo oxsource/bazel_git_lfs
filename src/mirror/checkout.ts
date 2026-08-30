@@ -94,6 +94,7 @@ export function findDependencyUrl(
 ): string | null {
   const lines = content.split('\n');
   let inBlock = false;
+  let inUrlsArray = false;
   let currentName = '';
   const found: string[] = [];
 
@@ -102,10 +103,30 @@ export function findDependencyUrl(
     if (nameMatch) {
       currentName = nameMatch[1];
       inBlock = currentName === depName;
+      inUrlsArray = false;
     }
     if (inBlock) {
-      // Single value:  url = "https://..." or  urls = "https://..."
-      const single = line.match(/urls?\s*=\s*"([^"]+)"/);
+      // Enter a urls = [ ... ] array block.
+      const arrayStart = line.match(/^\s*urls?\s*=\s*\[/);
+      if (arrayStart) {
+        inUrlsArray = true;
+        // Inline array:  urls = ["a", "b"]
+        const inline = line.match(/urls?\s*=\s*\[([^\]]*)\]/);
+        if (inline) {
+          const items = inline[1].match(/"([^"]+)"/g) ?? [];
+          for (const it of items) {
+            const u = it.slice(1, -1);
+            if (expectedUrl) {
+              if (u === expectedUrl) return u;
+            } else {
+              found.push(u);
+            }
+          }
+        }
+        continue;
+      }
+      // Single value:  url = "https://..."
+      const single = line.match(/^\s*url\s*=\s*"([^"]+)"/);
       if (single) {
         const u = single[1];
         if (expectedUrl) {
@@ -113,36 +134,33 @@ export function findDependencyUrl(
         } else {
           found.push(u);
         }
+        continue;
       }
-      // Inline array:  urls = ["a", "b"]
-      const inline = line.match(/urls?\s*=\s*\[([^\]]*)\]/);
-      if (inline) {
-        const items = inline[1].match(/"([^"]+)"/g) ?? [];
-        for (const it of items) {
-          const u = it.slice(1, -1);
+      // Inside urls = [ ... ]: each string element is a candidate URL.
+      if (inUrlsArray) {
+        if (/^\s*\]/.test(line)) {
+          inUrlsArray = false;
+          continue;
+        }
+        const item = line.match(/^\s*"([^"]+)"\s*,?\s*$/);
+        if (item) {
+          const u = item[1];
           if (expectedUrl) {
             if (u === expectedUrl) return u;
           } else {
             found.push(u);
           }
         }
-      }
-      // Array item:      "https://..."
-      const item = line.match(/^\s*"([^"]+)"\s*,?\s*$/);
-      if (item) {
-        const u = item[1];
-        if (expectedUrl) {
-          if (u === expectedUrl) return u;
-        } else {
-          found.push(u);
-        }
+        continue;
       }
       if (line.includes(')') && !line.includes('name')) {
         inBlock = false;
       }
     }
   }
-  return found.length > 0 ? found[0] : null;
+  return found.length > 0
+    ? (found.find((u) => !u.includes('localhost')) ?? found[0])
+    : null;
 }
 
 // Exported for testing
@@ -154,60 +172,83 @@ export function replaceDependencyUrl(
 ): { changed: boolean; newContent: string } {
   const lines = content.split('\n');
   let inBlock = false;
+  let inUrlsArray = false;
   let currentName = '';
   let changed = false;
 
-  const result = lines.map((line) => {
+  const result: string[] = [];
+  for (const line of lines) {
     const nameMatch = line.match(/name\s*=\s*"([^"]+)"/);
     if (nameMatch) {
       currentName = nameMatch[1];
       inBlock = currentName === depName;
+      inUrlsArray = false;
     }
-    if (inBlock) {
-      // Single value:  url = "https://..." or  urls = "https://..."
-      const single = line.match(/^(\s*urls?\s*=\s*)("([^"]+)")(.*)$/);
-      if (single) {
-        const before = single[3];
-        if (expectedUrl && before !== expectedUrl) return line;
+
+    if (!inBlock) {
+      result.push(line);
+      continue;
+    }
+
+    // Enter a urls = [ ... ] array block.
+    const arrayStart = line.match(/^(\s*urls?\s*=\s*\[)([^\]]*)(\]\s*,?\s*)$/);
+    if (arrayStart) {
+      const items = arrayStart[2].match(/"([^"]+)"/g) ?? [];
+      const replaced = items.map((it) => {
+        const u = it.slice(1, -1);
+        if (expectedUrl && u !== expectedUrl) return it;
+        if (u === newUrl) return it;
+        changed = true;
+        return `"${newUrl}"`;
+      });
+      result.push(`${arrayStart[1]}${replaced.join(', ')}${arrayStart[3]}`);
+      continue;
+    }
+    if (/^\s*urls?\s*=\s*\[/.test(line)) {
+      inUrlsArray = true;
+      result.push(line);
+      continue;
+    }
+    // Single value:  url = "https://..."
+    const single = line.match(/^(\s*url\s*=\s*)("([^"]+)")(.*)$/);
+    if (single) {
+      const before = single[3];
+      if (!expectedUrl || before === expectedUrl) {
         if (before !== newUrl) {
           changed = true;
-          return `${single[1]}"${newUrl}"${single[4]}`;
+          result.push(`${single[1]}"${newUrl}"${single[4]}`);
+          continue;
         }
-        return line;
       }
-      // Inline array:  urls = ["a", "b"]
-      const inline = line.match(/^(\s*urls?\s*=\s*\[)([^\]]*)(\]\s*,?\s*)$/);
-      if (inline) {
-        const items = inline[2].match(/"([^"]+)"/g) ?? [];
-        const replaced = items.map((it) => {
-          const u = it.slice(1, -1);
-          if (expectedUrl && u !== expectedUrl) return it;
-          if (u === newUrl) return it;
-          changed = true;
-          return `"${newUrl}"`;
-        });
-        if (changed) {
-          return `${inline[1]}${replaced.join(', ')}${inline[3]}`;
-        }
-        return line;
+      result.push(line);
+      continue;
+    }
+    // Inside urls = [ ... ]: replace matching array elements.
+    if (inUrlsArray) {
+      if (/^\s*\]/.test(line)) {
+        inUrlsArray = false;
+        result.push(line);
+        continue;
       }
-      // Array item:      "https://..."
       const item = line.match(/^(\s*)"([^"]+)"(,?\s*)$/);
       if (item) {
         const before = item[2];
-        if (expectedUrl && before !== expectedUrl) return line;
-        if (before !== newUrl) {
-          changed = true;
-          return `${item[1]}"${newUrl}"${item[3]}`;
+        if (!expectedUrl || before === expectedUrl) {
+          if (before !== newUrl) {
+            changed = true;
+            result.push(`${item[1]}"${newUrl}"${item[3]}`);
+            continue;
+          }
         }
-        return line;
       }
-      if (line.includes(')') && !line.includes('name')) {
-        inBlock = false;
-      }
+      result.push(line);
+      continue;
     }
-    return line;
-  });
+    if (line.includes(')') && !line.includes('name')) {
+      inBlock = false;
+    }
+    result.push(line);
+  }
 
   return { changed, newContent: result.join('\n') };
 }
@@ -239,9 +280,13 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
 
       let found = false;
       for (const [filePath, content] of Object.entries(files)) {
-        // Look up the element matching the manifest's original URL, so array
-        // URLs (urls = [...]) are handled correctly.
-        const currentUrl = findDependencyUrl(content, dep.name, originalUrl);
+        // original → restore: find the current (possibly mirror) URL and
+        // rewrite it back to the manifest's original source URL.
+        // remote → rewrite: match the element equal to the original source
+        // URL (so localhost entries in urls=[...] are left untouched).
+        const currentUrl = target.type === 'original'
+          ? findDependencyUrl(content, dep.name)
+          : findDependencyUrl(content, dep.name, originalUrl);
         if (currentUrl === null) continue;
         found = true;
 
@@ -250,7 +295,7 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
           continue;
         }
 
-        const { changed, newContent } = replaceDependencyUrl(content, dep.name, targetUrl, originalUrl);
+        const { changed, newContent } = replaceDependencyUrl(content, dep.name, targetUrl, currentUrl);
         if (changed) {
           const written = await deps.rewriteFile(filePath, newContent, currentUrl, targetUrl);
           if (written) {
