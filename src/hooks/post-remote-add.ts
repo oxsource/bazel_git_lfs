@@ -42,11 +42,31 @@ export async function postRemoteAdd(exitCode: number, args: string[], cwd: strin
   if (!branch) return;
 
   const objectsDir = join(cwd, CONFIG_DIR_NAME, 'objects');
+
+  // If the branch already exists, just switch to it; otherwise create it.
+  const branchExists = (() => {
+    try {
+      const refs = execFileSync('git', ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], {
+        cwd: objectsDir,
+        encoding: 'utf8',
+        stdio: 'pipe',
+      }).split('\n').filter(Boolean);
+      return refs.includes(branch);
+    } catch {
+      return false;
+    }
+  })();
+
   try {
-    execFileSync('git', ['checkout', '-b', branch], { cwd: objectsDir, stdio: 'pipe' });
-    process.stdout.write(`Switched to new branch "${branch}"\n`);
+    if (branchExists) {
+      execFileSync('git', ['checkout', branch], { cwd: objectsDir, stdio: 'pipe' });
+      process.stdout.write(`Switched to existing branch "${branch}"\n`);
+    } else {
+      execFileSync('git', ['checkout', '-b', branch], { cwd: objectsDir, stdio: 'pipe' });
+      process.stdout.write(`Switched to new branch "${branch}"\n`);
+    }
   } catch (err) {
-    process.stderr.write(`warning: failed to create branch "${branch}": ${(err as Error).message}\n`);
+    process.stderr.write(`warning: failed to switch to branch "${branch}": ${(err as Error).message}\n`);
     return;
   }
 
