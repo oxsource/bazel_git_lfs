@@ -11,16 +11,22 @@ const { fetch: undiciFetch, ProxyAgent, Agent, setGlobalDispatcher } = undici;
 
 type DispatcherType = import('undici').Dispatcher;
 
-function pickProxyUrl(): string | null {
+function pickProxyUrl(): { value: string; source: string } | null {
   const env = process.env;
-  const proxy =
-    env.HTTPS_PROXY ||
-    env.https_proxy ||
-    env.HTTP_PROXY ||
-    env.http_proxy ||
-    env.ALL_PROXY ||
-    env.all_proxy;
-  return proxy && proxy.trim().length > 0 ? proxy.trim() : null;
+  const candidates: Array<[string, string | undefined]> = [
+    ['HTTPS_PROXY', env.HTTPS_PROXY],
+    ['https_proxy', env.https_proxy],
+    ['HTTP_PROXY', env.HTTP_PROXY],
+    ['http_proxy', env.http_proxy],
+    ['ALL_PROXY', env.ALL_PROXY],
+    ['all_proxy', env.all_proxy],
+  ];
+  for (const [name, value] of candidates) {
+    if (value && value.trim().length > 0) {
+      return { value: value.trim(), source: name };
+    }
+  }
+  return null;
 }
 
 /**
@@ -28,9 +34,10 @@ function pickProxyUrl(): string | null {
  * Overrides globalThis.fetch with a proxy-aware wrapper so all callers benefit.
  */
 export function setupProxy(): void {
-  const proxy = pickProxyUrl();
-  if (proxy) {
-    const agent = new ProxyAgent(proxy) as DispatcherType;
+  const picked = pickProxyUrl();
+  if (picked) {
+    process.stderr.write(`[proxy] using proxy from ${picked.source}: ${picked.value}\n`);
+    const agent = new ProxyAgent(picked.value) as DispatcherType;
     setGlobalDispatcher(agent);
     globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
       undiciFetch(input as Parameters<typeof undiciFetch>[0], {
@@ -47,5 +54,5 @@ export function proxyEnabled(): boolean {
 }
 
 export function proxyUrl(): string | null {
-  return pickProxyUrl();
+  return pickProxyUrl()?.value ?? null;
 }
