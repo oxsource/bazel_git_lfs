@@ -27,7 +27,7 @@ describe('BazelLoader external loads', () => {
     const { BazelLoader } = await import('@/inspect/loader');
 
     const resolver = new ExternalResolver(projectDir);
-    const loader = new BazelLoader(projectDir, resolver);
+    const loader = new BazelLoader(projectDir, resolver, () => {}, true);
     const result = await loader.loadEntryFiles();
 
     expect(result.dependencies.length).toBeGreaterThanOrEqual(3);
@@ -61,7 +61,7 @@ describe('BazelLoader external loads', () => {
     const { BazelLoader } = await import('@/inspect/loader');
 
     const resolver = new ExternalResolver(projectDir);
-    const loader = new BazelLoader(projectDir, resolver);
+    const loader = new BazelLoader(projectDir, resolver, () => {}, true);
     const result = await loader.loadEntryFiles();
 
     expect(result.dependencies.length).toBeGreaterThanOrEqual(2);
@@ -88,7 +88,7 @@ http_archive(
 `);
 
     const { BazelLoader } = await import('@/inspect/loader');
-    const loader = new BazelLoader(projectDir);
+    const loader = new BazelLoader(projectDir, undefined, () => {}, true);
     const result = await loader.loadEntryFiles();
 
     expect(result.dependencies).toHaveLength(1);
@@ -114,7 +114,7 @@ http_archive(
 `);
 
     const { BazelLoader } = await import('@/inspect/loader');
-    const loader = new BazelLoader(projectDir);
+    const loader = new BazelLoader(projectDir, undefined, () => {}, true);
     const result = await loader.loadEntryFiles();
 
     expect(result.dependencies).toHaveLength(1);
@@ -132,7 +132,7 @@ http_archive(
     writeFileSync(join(projectDir, 'a.bzl'), `load("//:a.bzl", "a")`);
 
     const { BazelLoader } = await import('@/inspect/loader');
-    const loader = new BazelLoader(projectDir);
+    const loader = new BazelLoader(projectDir, undefined, () => {}, true);
     const result = await loader.loadEntryFiles();
 
     expect(result.warnings.length).toBeGreaterThanOrEqual(0);

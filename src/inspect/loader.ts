@@ -4,6 +4,7 @@ import { parseBazelFile } from './bazel-parser';
 import { Dependency, DependencyConflict } from './models';
 import { BAZEL_FILES } from '@/config/constants';
 import { ExternalResolver, RESOLVE_DEPTH_LIMIT } from './external-resolver';
+import { queryHttpArchiveRepos, extractAttributesForName } from './bazel-query';
 
 type LoadTarget = 
   | { type: 'local'; path: string }
@@ -45,11 +46,15 @@ export class BazelLoader {
   private depMap = new Map<string, Dependency>();
   private declarations = new Map<string, DeclarationRecord>();
   private conflicts: DependencyConflict[] = [];
+  /** Raw text of every Bazel source file scanned (for regex attribute extraction). */
+  private sources: string[] = [];
 
   constructor(
     private readonly projectDir: string,
     private readonly resolver?: ExternalResolver,
     private readonly log: (msg: string) => void = () => {},
+    /** Skip the bazel query calibration step (e.g. in tests). */
+    private readonly skipBazelQuery = false,
   ) {}
 
   async loadEntryFiles(): Promise<LoadedFileResult> {
@@ -66,6 +71,36 @@ export class BazelLoader {
       warnings.push(...depsIn.warnings);
       if (depsIn.filesScanned.length > 0) {
         filesScanned.push(...depsIn.filesScanned);
+      }
+    }
+
+    // Calibrate against Bazel's authoritative repository list. Bazel resolves
+    // the full dependency graph (including transitive .bzl declarations and
+    // data-driven for-loops), so its names are ground truth. Attributes
+    // (url/sha256) are filled in from the scanned source via regex.
+    if (this.skipBazelQuery) {
+      this.log('Skipping bazel query calibration (disabled)');
+      return { dependencies: deps, warnings, filesScanned, conflicts: this.conflicts };
+    }
+    const query = await queryHttpArchiveRepos(this.projectDir);
+    if (query.available && query.names.length > 0) {
+      this.log(`Bazel confirmed ${query.names.length} http_archive repo(s)`);
+      const known = new Set(deps.map((d) => d.name));
+      for (const name of query.names) {
+        if (known.has(name)) continue;
+        const attrDep = extractAttributesForName(name, this.sources);
+        if (attrDep) {
+          deps.push(attrDep);
+        } else {
+          warnings.push(
+            `repo "${name}" resolved by Bazel but no url/sha256 literal found in scanned sources`,
+          );
+        }
+      }
+    } else {
+      this.log('Bazel query unavailable; using static parsing only');
+      if (query.error) {
+        this.log(`  (${query.error.split('\n')[0]})`);
       }
     }
 
@@ -103,6 +138,7 @@ export class BazelLoader {
     }
 
     const parsed = parseBazelFile(content, displayName);
+    this.sources.push(content);
     const deps: Dependency[] = [];
     const warnings = [...parsed.warnings];
     const filesScanned = [displayName];

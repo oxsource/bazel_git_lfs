@@ -1,4 +1,5 @@
 import { Dependency } from './models';
+import { extractDepsByRegex } from './regex-extractor';
 
 export interface ParsedFile {
   dependencies: Dependency[];
@@ -56,6 +57,17 @@ export function parseBazelFile(content: string, sourceFile: string): ParsedFile 
     i++;
   }
 
+  // Regex fallback: scan the raw source for name/url(s)/sha256 literals that
+  // the structural parser may have missed (dict-driven declarations, wrapper
+  // functions, etc.). Only add names the structural parser did not see at
+  // all — never deduplicate or rewrite structural results (which preserves
+  // duplicate-declaration conflict detection downstream).
+  const structuralNames = new Set(deps.map((d) => d.name));
+  for (const regexDep of extractDepsByRegex(content)) {
+    if (!structuralNames.has(regexDep.name)) {
+      deps.push(regexDep);
+    }
+  }
   return { dependencies: deps, warnings, loads };
 }
 
@@ -88,15 +100,91 @@ function processStatement(
         deps.push(dep);
       } else {
         warnings.push(
-          `${sourceFile}: could not resolve ${rule.name} rule (${rule.name === 'http_archive' ? (rule.attrs.name ?? '<unknown name>') : (rule.attrs.name ?? '<unknown name>')})`,
+          `${sourceFile}: could not resolve ${rule.name} rule (${rule.attrs.name ?? '<unknown name>'})`,
         );
       }
+      return;
+    }
+  }
+  // Wrapper pattern: _guard(http_archive, "name", kwargs) — the first
+  // argument is the rule name, the rest are the rule's own arguments.
+  const wrapped = parseWrappedRuleCall(stmt, symbols);
+  if (wrapped) {
+    const dep = buildDependency(wrapped, sourceFile, symbols);
+    if (dep) {
+      deps.push(dep);
+    } else {
+      warnings.push(
+        `${sourceFile}: could not resolve wrapped ${wrapped.name} rule (${wrapped.attrs.name ?? '<unknown name>'})`,
+      );
     }
   }
 }
 
+interface WrappedRuleCall {
+  name: string;
+  attrs: Record<string, unknown>;
+}
+
+/**
+ * Recognize wrapper functions like `_guard(http_archive, "name", kwargs)`
+ * where the first argument is the rule name and the remaining arguments are
+ * the rule call's own arguments (positional name and/or kwargs dict).
+ */
+function parseWrappedRuleCall(
+  stmt: string,
+  symbols: Record<string, unknown>,
+): WrappedRuleCall | null {
+  const match = /^([a-zA-Z_][a-zA-Z0-9_]*)\(([\s\S]*)\)$/.exec(stmt);
+  if (!match) {
+    return null;
+  }
+  const args = splitTopLevel(match[2], ',');
+  if (args.length < 2) {
+    return null;
+  }
+  const ruleName = args[0].trim();
+  if (!RULE_NAMES.has(ruleName)) {
+    return null;
+  }
+
+  const attrs: Record<string, unknown> = {};
+  const rest = args.slice(1);
+  // `dep["name"]` — name expression (positional).
+  if (!rest[0].trim().includes('=')) {
+    attrs['name'] = rest[0].trim();
+  }
+  // Remaining args: `key = value` pairs and/or a kwargs dict identifier.
+  for (const arg of rest) {
+    const trimmed = arg.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    const eq = findTopLevel(trimmed, '=');
+    if (eq >= 0) {
+      attrs[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
+      continue;
+    }
+    // Bare identifier referencing a kwargs dict in the symbol table.
+    const kwName = /^[a-zA-Z_][a-zA-Z0-9_]*$/.exec(trimmed)?.[0];
+    if (kwName) {
+      let value = resolveRef(parseStarlarkValue(trimmed), symbols);
+      // Resolve nested { __dictComp: ... } / { __ref: ... } values.
+      value = resolveRef(value, symbols);
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+          if (k === 'name') continue;
+          attrs[k] = v;
+        }
+      }
+    }
+  }
+
+  return { name: ruleName, attrs };
+}
+
 function buildDependency(
-  rule: RuleCall,
+  rule: { name: string; attrs: Record<string, unknown> },
   sourceFile: string,
   symbols: Record<string, unknown>,
 ): Dependency | null {
@@ -124,7 +212,7 @@ function buildDependency(
 
 interface RuleCall {
   name: string;
-  attrs: Record<string, string>;
+  attrs: Record<string, unknown>;
 }
 
 function parseRuleCall(stmt: string): RuleCall | null {
@@ -136,7 +224,7 @@ function parseRuleCall(stmt: string): RuleCall | null {
   if (!RULE_NAMES.has(name)) {
     return null;
   }
-  const attrs: Record<string, string> = {};
+  const attrs: Record<string, unknown> = {};
   for (const [key, value] of splitArgs(match[2])) {
     attrs[key] = value.trim();
   }
@@ -367,6 +455,11 @@ function findTopLevel(input: string, target: string): number {
 
 function parseStarlarkValue(text: string): unknown {
   const trimmed = text.trim();
+  // Dict comprehension: {k: v for k, v in OBJ.items() [if cond]}
+  const dictComp = /^\{[a-zA-Z_][a-zA-Z0-9_]*\s*:\s*.+?\s+for\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s+in\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s*\.items\(\)\s*(?:if\s+.+)?\}$/.exec(trimmed);
+  if (dictComp) {
+    return { __dictComp: dictComp[1] };
+  }
   if (trimmed.startsWith('[')) {
     const inner = trimmed.slice(1, trimmed.lastIndexOf(']')).trim();
     if (inner.length === 0) {
@@ -408,18 +501,37 @@ function resolveValue(expr: string, symbols: Record<string, unknown>): unknown {
   return resolveExpression(expr.trim(), symbols);
 }
 
-function resolveScalar(value: string | undefined, symbols: Record<string, unknown>): unknown {
+function resolveScalar(value: unknown, symbols: Record<string, unknown>): unknown {
   if (value === undefined) {
     return undefined;
   }
+  if (typeof value !== 'string') {
+    // Already-resolved value (e.g. from a kwargs dict expansion).
+    return value;
+  }
   const parsed = parseStarlarkValue(value);
-  return resolveRef(parsed, symbols);
+  const resolved = resolveRef(parsed, symbols);
+  if (resolved === undefined) {
+    // Treat an unresolvable bare string as a literal (e.g. a sha256 hex or
+    // a URL produced by dict expansion).
+    return value;
+  }
+  return resolved;
 }
 
 function resolveRef(value: unknown, symbols: Record<string, unknown>): unknown {
   if (value && typeof value === 'object' && '__ref' in (value as Record<string, unknown>)) {
     const name = (value as Record<string, unknown>).__ref as string;
     return resolveExpression(name, symbols);
+  }
+  if (value && typeof value === 'object' && '__dictComp' in (value as Record<string, unknown>)) {
+    const sourceName = (value as Record<string, unknown>).__dictComp as string;
+    const source = resolveExpression(sourceName, symbols);
+    if (source && typeof source === 'object' && !Array.isArray(source)) {
+      // Shallow-copy the dict (e.g. a dependency entry) as a kwargs map.
+      return { ...(source as Record<string, unknown>) };
+    }
+    return undefined;
   }
   return value;
 }
@@ -445,14 +557,22 @@ function resolveExpression(expr: string, symbols: Record<string, unknown>): unkn
   return symbols[expr];
 }
 
-function resolveUrls(value: string | undefined, symbols: Record<string, unknown>): unknown {
+function resolveUrls(value: unknown, symbols: Record<string, unknown>): unknown {
   if (value === undefined) {
     return undefined;
+  }
+  if (typeof value !== 'string') {
+    // Already-resolved value (e.g. array from a kwargs dict expansion).
+    return value;
   }
   const parsed = parseStarlarkValue(value);
   const resolved = resolveRef(parsed, symbols);
   if (typeof resolved === 'string') {
     return [resolved];
+  }
+  if (resolved === undefined) {
+    // Unresolvable bare string — treat as a literal URL.
+    return [value];
   }
   return resolved;
 }

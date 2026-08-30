@@ -44,6 +44,18 @@ describe('bazel-parser', () => {
     expect(boost?.sha256).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
   });
 
+  it('resolves wrapper-call dependencies with a kwargs dict (cpp_network style)', () => {
+    const result = parseBazelFile(fixture('wrapped', 'WORKSPACE'), 'WORKSPACE');
+    expect(result.dependencies).toHaveLength(2);
+    expect(result.dependencies.map((d) => d.name).sort()).toEqual(['curl', 'openssl']);
+    const curl = result.dependencies.find((d) => d.name === 'curl');
+    expect(curl?.urls).toEqual(['https://curl.se/download/curl-8.7.1.tar.gz']);
+    expect(curl?.sha256).toBe('f91249c87f68ea00cf27c44fdfa5a78423e41e71b7d408e5901a9896d905c495');
+    expect(curl?.stripPrefix).toBe('curl-8.7.1');
+    const openssl = result.dependencies.find((d) => d.name === 'openssl');
+    expect(openssl?.urls[0]).toContain('openssl-3.0.13.tar.gz');
+  });
+
   it('reports no dependencies for an empty project', () => {
     const result = parseBazelFile(fixture('empty', 'WORKSPACE'), 'WORKSPACE');
     expect(result.dependencies).toHaveLength(0);
