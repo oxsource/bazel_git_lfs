@@ -10,6 +10,15 @@ const url = require('url');
 const objectsDir = process.argv[2];
 const port = Number(process.argv[3] || 8022);
 
+// Set a recognizable process name: <repo>_http_server (e.g. filament_avm_http_server).
+// objectsDir = <repo>/.bazel_git_lfs/objects → repo dir is two levels up.
+const repoName = path.basename(path.dirname(path.dirname(objectsDir)));
+try {
+  process.title = `${repoName}_http_server`;
+} catch (err) {
+  // process.title may fail on some platforms; ignore.
+}
+
 const MIME = {
   '.zip': 'application/zip',
   '.tgz': 'application/gzip',
