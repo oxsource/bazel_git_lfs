@@ -42,6 +42,60 @@ function printTable(result: InspectResult): void {
   }
 }
 
+async function downloadWithProgress(
+  url: string,
+  expectedSha: string,
+): Promise<{ ok: true; data: Buffer } | { ok: false; reason: 'http' | 'timeout' | 'hash-mismatch' | 'network'; message: string }> {
+  const timeoutMs = 10 * 60_000;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let response: Response;
+    try {
+      response = await fetch(url, { redirect: 'follow', signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!response.ok || !response.body) {
+      return { ok: false, reason: 'http', message: `HTTP ${response.status}` };
+    }
+
+    const total = Number(response.headers.get('content-length') ?? 0);
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        received += value.length;
+        if (total > 0) {
+          const pct = Math.min(100, Math.round((received / total) * 100));
+          process.stderr.write(`\r    ${pct}% (${(received / 1024 / 1024).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(1)}MB)`);
+        } else {
+          process.stderr.write(`\r    ${(received / 1024 / 1024).toFixed(1)}MB`);
+        }
+      }
+    }
+    process.stderr.write('\n');
+
+    const buf = Buffer.concat(chunks);
+    const actual = sha256.hexOfBuffer(buf);
+    if (actual !== expectedSha) {
+      return { ok: false, reason: 'hash-mismatch', message: `expected ${expectedSha.slice(0, 12)}… got ${actual.slice(0, 12)}…` };
+    }
+    return { ok: true, data: buf };
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { ok: false, reason: 'timeout', message: 'request timed out' };
+    }
+    return { ok: false, reason: 'network', message: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 async function updateMissing(opts: InspectOptions, result: InspectResult): Promise<void> {
   const objectsDir = join(opts.cwd, CONFIG_DIR_NAME, DIRS.OBJECTS);
   let updated = 0;
@@ -64,23 +118,27 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
 
     let downloaded = false;
     for (const url of dep.urls) {
-      try {
-        const response = await fetch(url, { redirect: 'follow' });
-        if (!response.ok || !response.body) continue;
-        const buf = Buffer.from(await response.arrayBuffer());
-        const actual = sha256.hexOfBuffer(buf);
-        if (actual !== dep.sha256) {
-          say(`  SHA256 mismatch for ${url}, trying next URL`);
-          continue;
+      const result = await downloadWithProgress(url, dep.sha256);
+      if (!result.ok) {
+        if (result.reason === 'hash-mismatch') {
+          say(`  SHA256 mismatch for ${url} (${result.message}), trying next URL`);
+        } else if (result.reason === 'timeout') {
+          say(`  Timeout for ${url}, trying next URL`);
+        } else {
+          say(`  Failed for ${url} (${result.message}), trying next URL`);
         }
+        continue;
+      }
+      try {
         mkdirSync(dirname(absPath), { recursive: true });
-        writeFileSync(absPath, buf);
+        writeFileSync(absPath, result.data);
         execFileSync('git', ['add', relPath], { cwd: objectsDir, stdio: 'pipe' });
         say(`  OK ${relPath}`);
         downloaded = true;
         updated++;
         break;
-      } catch {
+      } catch (err) {
+        say(`  Store error: ${(err as Error).message}`);
         continue;
       }
     }
