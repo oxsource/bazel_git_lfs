@@ -43,6 +43,7 @@ function printTable(result: InspectResult): void {
 }
 
 async function downloadWithProgress(
+  label: string,
   url: string,
   expectedSha: string,
 ): Promise<{ ok: true; data: Buffer } | { ok: false; reason: 'http' | 'timeout' | 'hash-mismatch' | 'network'; message: string }> {
@@ -66,6 +67,7 @@ async function downloadWithProgress(
     const chunks: Uint8Array[] = [];
     let received = 0;
 
+    process.stderr.write(`Downloading ${label}... `);
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -74,13 +76,14 @@ async function downloadWithProgress(
         received += value.length;
         if (total > 0) {
           const pct = Math.min(100, Math.round((received / total) * 100));
-          process.stderr.write(`\r    ${pct}% (${(received / 1024 / 1024).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(1)}MB)`);
+          process.stderr.write(`\rDownloading ${label}... ${pct}% (${(received / 1024 / 1024).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(1)}MB)`);
         } else {
-          process.stderr.write(`\r    ${(received / 1024 / 1024).toFixed(1)}MB`);
+          process.stderr.write(`\rDownloading ${label}... ${(received / 1024 / 1024).toFixed(1)}MB`);
         }
       }
     }
-    process.stderr.write('\n');
+    const pad = ' '.repeat(label.length + 32);
+    process.stderr.write(`\r${pad}\rDownloading ${label}... done\n`);
 
     const buf = Buffer.concat(chunks);
     const actual = sha256.hexOfBuffer(buf);
@@ -114,11 +117,9 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
       continue;
     }
 
-    say(`Downloading ${dep.name}...`);
-
     let downloaded = false;
     for (const url of dep.urls) {
-      const result = await downloadWithProgress(url, dep.sha256);
+      const result = await downloadWithProgress(dep.name, url, dep.sha256);
       if (!result.ok) {
         if (result.reason === 'hash-mismatch') {
           say(`  SHA256 mismatch for ${url} (${result.message}), trying next URL`);
