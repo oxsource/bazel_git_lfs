@@ -9,6 +9,7 @@ import { handle, registerCommand } from '@/cli/interceptor';
 import { format } from '@/cli/format';
 import { COMMANDS, TOOL_NAME } from '@/config/constants';
 import { postRemoteAdd } from '@/hooks/post-remote-add';
+import { setupProxy } from '@/objects/proxy';
 
 const VERSION: string = __BGL_VERSION__;
 
@@ -101,6 +102,9 @@ export function buildProgram(deps: CliDeps = {}): Command {
 
 export function run(argv: string[]): void {
   const args = argv.slice(2);
+
+  // Configure global fetch dispatcher for proxy support before any command runs.
+  setupProxy();
 
   // Show custom command help if no args or help/version.
   if (args.length === 0 || isHelpOrVersion(args[0])) {
