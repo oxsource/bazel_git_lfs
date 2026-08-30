@@ -60,8 +60,16 @@ export async function runInit(opts: InitOptions): Promise<number> {
   }
 
   if (isGitRepo(opts.cwd)) {
-    await ensureGitIgnore(gitIgnorePath, opts);
+    const gitignoreModified = await ensureGitIgnore(gitIgnorePath, opts);
     await installPreCommitHook(opts.cwd);
+    if (gitignoreModified) {
+      try {
+        execFileSync('git', ['add', '.gitignore'], { cwd: opts.cwd, stdio: 'pipe' });
+        execFileSync('git', ['commit', '-m', 'chore: add .bazel_git_lfs/ to .gitignore'], { cwd: opts.cwd, stdio: 'pipe' });
+      } catch {
+        // non-fatal
+      }
+    }
   }
 
   const result: Record<string, unknown> = {
@@ -92,7 +100,7 @@ async function installPreCommitHook(cwd: string): Promise<void> {
   }
 }
 
-async function ensureGitIgnore(gitIgnorePath: string, opts: InitOptions): Promise<void> {
+async function ensureGitIgnore(gitIgnorePath: string, opts: InitOptions): Promise<boolean> {
   try {
     let content = '';
     try {
@@ -102,12 +110,13 @@ async function ensureGitIgnore(gitIgnorePath: string, opts: InitOptions): Promis
     }
 
     if (content.includes(GITIGNORE_ENTRY)) {
-      return;
+      return false;
     }
 
     const line =
       content.endsWith('\n') || content.length === 0 ? GITIGNORE_ENTRY : `\n${GITIGNORE_ENTRY}`;
     await writeFile(gitIgnorePath, content + line, 'utf8');
+    return true;
   } catch (err) {
     const message = `Config area created, but could not update ${gitIgnorePath}: ${(err as Error).message}`;
     if (opts.json) {
@@ -121,5 +130,6 @@ async function ensureGitIgnore(gitIgnorePath: string, opts: InitOptions): Promis
     } else {
       process.stderr.write(`warning: ${message}\n`);
     }
+    return false;
   }
 }
