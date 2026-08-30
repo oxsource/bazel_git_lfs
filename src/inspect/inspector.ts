@@ -7,6 +7,7 @@ import { InspectResult, emptyInspectResult } from './models';
 export interface InspectProjectOptions {
   projectDir: string;
   useQuery?: boolean;
+  verbose?: boolean;
 }
 
 export async function inspectProject(opts: InspectProjectOptions): Promise<InspectResult> {
@@ -21,14 +22,21 @@ export async function inspectProject(opts: InspectProjectOptions): Promise<Inspe
     throw new Error(`Project directory not readable: ${opts.projectDir}`);
   }
 
+  const verbose = opts.verbose;
+  const log = verbose ? (msg: string) => process.stderr.write(`[inspect] ${msg}\n`) : () => {};
+
+  log('Starting dependency scan...');
+
   const resolver = new ExternalResolver(opts.projectDir);
-  const loader = new BazelLoader(opts.projectDir, resolver);
+  const loader = new BazelLoader(opts.projectDir, resolver, log);
   let loaded;
   try {
     loaded = await loader.loadEntryFiles();
   } finally {
     await resolver.cleanup().catch(() => {});
   }
+
+  log(`Scanned ${loaded.filesScanned.length} file(s), found ${loaded.dependencies.length} dependency(ies)`);
 
   result.dependencies = loaded.dependencies;
   result.warnings = loaded.warnings;
@@ -37,11 +45,13 @@ export async function inspectProject(opts: InspectProjectOptions): Promise<Inspe
   result.hasConflicts = loaded.conflicts.length > 0;
 
   if (opts.useQuery !== false) {
+    log('Running bazel query...');
     const query = await runBazelQuery(opts.projectDir);
     if (query) {
       result.queryUsed = true;
       result.queryExternalRepos = query.externalRepos;
       result.dependencyRelations = query.dependencyRelations;
+      log('bazel query completed');
     } else {
       result.queryUsed = false;
       result.queryExternalRepos = null;
@@ -49,6 +59,7 @@ export async function inspectProject(opts: InspectProjectOptions): Promise<Inspe
       result.warnings.push(
         'bazel query was not used: bazel binary unavailable or query failed; results are from file inspection only.',
       );
+      log('bazel query unavailable or failed');
     }
   }
 

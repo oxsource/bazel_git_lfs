@@ -13,7 +13,7 @@ function getOuterRepoUrl(cwd: string): string | null {
   }
 }
 
-export async function postRemoteAdd(exitCode: number, args: string[], cwd: string): Promise<void> {
+export async function postRemoteAdd(exitCode: number, _args: string[], cwd: string): Promise<void> {
   if (exitCode !== 0) return;
 
   const outerUrl = getOuterRepoUrl(cwd);

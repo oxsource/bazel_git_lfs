@@ -10,6 +10,7 @@ import { COMMANDS, TOOL_NAME } from '@/config/constants';
 export interface InspectOptions {
   cwd: string;
   force?: boolean;
+  verbose?: boolean;
 }
 
 export async function runInspect(opts: InspectOptions): Promise<number> {
@@ -44,7 +45,7 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
   // Run fresh inspect.
   let result: InspectResult;
   try {
-    result = await inspectProject({ projectDir });
+    result = await inspectProject({ projectDir, verbose: opts.verbose });
   } catch (err) {
     format.printResult({ ok: false, error: (err as Error).message }, { json: true });
     return EXIT_ERROR;

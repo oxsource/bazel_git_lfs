@@ -49,6 +49,7 @@ export class BazelLoader {
   constructor(
     private readonly projectDir: string,
     private readonly resolver?: ExternalResolver,
+    private readonly log: (msg: string) => void = () => {},
   ) {}
 
   async loadEntryFiles(): Promise<LoadedFileResult> {
@@ -59,6 +60,7 @@ export class BazelLoader {
 
     for (const name of entryFiles) {
       const path = join(this.projectDir, name);
+      this.log(`Scanning ${name}...`);
       const depsIn = await this.loadFile(path, name, [], 0);
       deps.push(...depsIn.dependencies);
       warnings.push(...depsIn.warnings);
@@ -89,6 +91,8 @@ export class BazelLoader {
     }
     this.visited.add(absPath);
 
+    this.log(`  Scanning ${displayName}`);
+
     let content: string;
     try {
       content = await readFile(absPath, 'utf8');
@@ -104,8 +108,18 @@ export class BazelLoader {
     const warnings = [...parsed.warnings];
     const filesScanned = [displayName];
 
+    // Filter out dependencies that reference localhost URLs.
+    const filtered = parsed.dependencies.filter((dep) => {
+      const hasLocalhost = dep.urls.some((u) => u.includes('localhost'));
+      if (hasLocalhost) {
+        warnings.push(`skipping "${dep.name}" — URL contains localhost`);
+        this.log(`  Skipping "${dep.name}" — localhost URL`);
+      }
+      return !hasLocalhost;
+    });
+
     // First-encounter bookkeeping: deduplicate and detect conflicts.
-    for (const dep of parsed.dependencies) {
+    for (const dep of filtered) {
       const existing = this.declarations.get(dep.name);
       if (!existing) {
         // First encounter — record it.
