@@ -216,15 +216,19 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
 
   const allChanged = treeResult.changed;
 
-  // Human-readable output:  [n] name, old url --> new url  (one line per change)
+  // Human-readable output: a title line, then one change per numbered line
+  // with a blank line separating each item.
   if (treeResult.error) {
     process.stderr.write(`error: ${treeResult.error}\n`);
   }
-  treeResult.changes.forEach((change, i) => {
-    process.stdout.write(`[${i + 1}] ${change.dependency}, ${change.before} --> ${change.after}\n`);
-  });
-  if (allChanged === 0 && !treeResult.error) {
-    process.stdout.write(`No URL changes for "${treeResult.alias}" (${treeResult.unchanged} unchanged)\n`);
+  if (allChanged > 0) {
+    process.stdout.write(`Checkout "${treeResult.alias}" (${treeResult.target}): ${allChanged} URL change(s)\n`);
+    treeResult.changes.forEach((change, i) => {
+      process.stdout.write(`\n[${i + 1}] ${change.dependency}, ${change.before} --> ${change.after}\n`);
+    });
+    process.stdout.write('\n');
+  } else if (!treeResult.error) {
+    process.stdout.write(`Checkout "${treeResult.alias}" (${treeResult.target}): no URL changes (${treeResult.unchanged} unchanged)\n`);
   }
 
   if (treeResult.ok && allChanged > 0) {
