@@ -4,6 +4,7 @@ import { runInit } from '@/cli/init';
 import { runInspect } from '@/cli/inspect';
 import { runCleanCommand } from '@/cli/clean';
 import { runCheckoutCommand } from '@/cli/checkout';
+import { runCompletion } from '@/cli/completion';
 import { handle, registerCommand } from '@/cli/interceptor';
 import { format } from '@/cli/format';
 import { COMMANDS, TOOL_NAME } from '@/config/constants';
@@ -21,6 +22,7 @@ const CUSTOM_COMMANDS: ReadonlySet<string> = new Set([
   COMMANDS.INSPECT,
   COMMANDS.CLEAN,
   COMMANDS.CHECKOUT,
+  COMMANDS.COMPLETION,
 ]);
 
 registerCommand(COMMANDS.REMOTE, {
@@ -84,6 +86,14 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .allowExcessArguments(false)
     .action(async (alias: string) => {
       process.exitCode = await runCheckoutCommand({ cwd, alias });
+    });
+
+  program
+    .command(COMMANDS.COMPLETION)
+    .description('Generate shell completion script')
+    .argument('[shell]', 'bash or zsh (default: auto-detect from SHELL env)')
+    .action(async (shell: string | undefined) => {
+      process.exitCode = await runCompletion({ shell });
     });
 
   return program;

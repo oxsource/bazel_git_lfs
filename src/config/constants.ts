@@ -8,6 +8,7 @@ export const COMMANDS = {
   CLEAN: 'clean',
   CHECKOUT: 'checkout',
   REMOTE: 'remote',
+  COMPLETION: 'completion',
 } as const;
 
 export const REMOTE_SUBCOMMANDS = {
