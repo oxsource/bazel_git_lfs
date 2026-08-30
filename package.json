@@ -20,7 +20,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "link": "npm link",
+    "unlink": "npm uninstall -g bazel-git-lfs"
   },
   "keywords": [
     "bazel",
