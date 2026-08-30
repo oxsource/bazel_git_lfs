@@ -2,74 +2,23 @@
 
 ## Purpose
 
-Upload locally cached and verified objects from the local objects store to the mirror repository. Also merges source URLs into the mirror manifest and commits + pushes the changes to the mirror.
+Passthrough to `git -C .bazel_git_lfs/objects push <args>`. Pushes commits and LFS objects from the inner git repository to the remote.
 
 ## Usage
 
 ```
-bazel-git-lfs push [--json]
+bazel-git-lfs push <remote> [<branch>] [git-push-options...]
 ```
 
-## Options
-
-| Option | Description |
-|--------|-------------|
-| `--json` | Output machine-readable JSON |
+All arguments are passed through to `git push` in the inner repo.
 
 ## Examples
 
-Push all locally cached objects to the mirror:
-
 ```bash
-bazel-git-lfs push
+bazel-git-lfs push origin main
 ```
-
-Get machine-readable results:
-
-```bash
-bazel-git-lfs push --json
-```
-
-## JSON Output
-
-```json
-{
-  "ok": true,
-  "command": "push",
-  "projectDir": "/path/to/project",
-  "remote": {
-    "alias": "default",
-    "url": "git@github.com:my-org/mirror.git"
-  },
-  "commit": "abc123def...",
-  "pushed": true,
-  "results": [
-    {
-      "name": "react",
-      "sha256": "15a019bd...",
-      "status": "uploaded"
-    }
-  ],
-  "warnings": [],
-  "summary": {
-    "total": 2,
-    "uploaded": 2,
-    "already-mirrored": 0,
-    "missing-local": 0,
-    "failed": 0
-  }
-}
-```
-
-## Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Push completed successfully (or nothing to push) |
-| 1 | Error during push |
 
 ## Notes
 
-- Objects that are already mirrored are reported as `already-mirrored` and skipped
-- Objects that are not present locally are reported as `missing-local` — the push continues with other objects
-- The command is idempotent — re-running on an already up-to-date mirror produces no new commit (`pushed: false`)
+- `push` is a passthrough command — it delegates to `git -C .bazel_git_lfs/objects push`
+- LFS objects are pushed automatically via the Git LFS filter

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Rewrite dependency URL declarations in Bazel project files (`WORKSPACE`, `WORKSPACE.bazel`, `MODULE.bazel`) to point at different target sources based on the given alias. Useful for switching between original source URLs, local file paths, and mirror URLs.
+`checkout` is a hybrid command. It intercepts special aliases with custom URL replacement logic, and passes through branch names to `git -C .bazel_git_lfs/objects checkout` followed by custom URL patching.
 
 ## Usage
 
@@ -12,30 +12,23 @@ bazel-git-lfs checkout <alias>
 
 ## Aliases
 
-| Alias | Target | Description |
-|-------|--------|-------------|
-| `default` or `--` | Original source URLs | Restore URLs to the original source URLs from the mirror manifest |
-| `local` or `@` | Local file paths | Switch to `file://` paths under `.bazel_git_lfs/objects/` |
-| `<profile-name>` | Profile remote URL | Switch to that profile's configured remote mirror URL |
+| Alias | Behavior |
+|-------|----------|
+| `default` or `--` | Custom URL replacement — restore original source URLs in Bazel files |
+| `local` or `@` | Custom URL replacement — switch to `file://` paths under `.bazel_git_lfs/objects/` |
+| `<branch>` | `git -C .bazel_git_lfs/objects checkout <branch>` then custom URL replacement/patch |
 
 ## Examples
 
-Restore to original source URLs:
-
 ```bash
+# Restore to original source URLs
 bazel-git-lfs checkout default
-```
 
-Switch to local file paths:
-
-```bash
+# Switch to local file paths
 bazel-git-lfs checkout local
-```
 
-Switch to a named profile:
-
-```bash
-bazel-git-lfs checkout my-profile
+# Git checkout a branch + apply URL patches
+bazel-git-lfs checkout feature-branch
 ```
 
 ## Exit Codes
@@ -43,12 +36,10 @@ bazel-git-lfs checkout my-profile
 | Code | Meaning |
 |------|---------|
 | 0 | Checkout completed successfully |
-| 1 | Error (e.g., manifest required for `default`, objects store missing for `local`) |
+| 1 | Error |
 
 ## Notes
 
-- `checkout` writes changes directly to Bazel files — no dry-run mode
-- A pre-commit hook (installed by `init`) automatically runs `checkout default` before commits to prevent non-default URLs from being committed
-- `checkout default` requires the mirror manifest to be available
-- `checkout local` requires the objects store to exist
+- `checkout` writes changes directly to Bazel files
+- A pre-commit hook (installed by `init`) automatically runs `checkout default` before commits
 - The command is idempotent — re-running with the same alias produces no changes

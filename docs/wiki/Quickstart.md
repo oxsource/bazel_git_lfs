@@ -1,11 +1,12 @@
 # Quickstart
 
-This quickstart walks you through the complete `bazel-git-lfs` workflow. By the end, you will have mirrored dependencies from a Bazel project to a remote mirror repository.
+This quickstart walks you through the complete `bazel-git-lfs` workflow. By the end, you will have an inner git repository managing your Bazel dependency mirrors.
 
 ## Prerequisites
 
 - [[Installation|Install]] `bazel-git-lfs` (global install or npx)
-- A Bazel project with `http_archive` or `http_file` dependencies (e.g., `WORKSPACE` or `MODULE.bazel` file)
+- `git` and `git-lfs` installed on your system
+- A Bazel project with `http_archive` or `http_file` dependencies
 
 ## 1. Initialize
 
@@ -14,81 +15,57 @@ cd /path/to/your/project
 bazel-git-lfs init
 ```
 
-This creates the `.bazel_git_lfs/` config directory in your project and adds it to `.gitignore`.
+This creates `.bazel_git_lfs/` → `mkdir objects` → `git init` in objects with Git LFS enabled. Adds `.bazel_git_lfs/` to `.gitignore`.
 
-## 2. Configure a Mirror
-
-Add a mirror repository profile:
-
-```bash
-bazel-git-lfs remote add --url git@github.com:my-org/mirror.git
-```
-
-This creates a profile named `default` pointing to your mirror repository. You can verify it was saved:
-
-```bash
-bazel-git-lfs remote list
-```
-
-## 3. Inspect Dependencies
-
-Scan your project for HTTP dependencies:
+## 2. Inspect Dependencies
 
 ```bash
 bazel-git-lfs inspect
 ```
 
-This parses your `WORKSPACE`/`MODULE.bazel` files (and any `load()`ed `.bzl` files) and lists all `http_archive`/`http_file` dependencies with their URLs and declared SHA256 digests.
+Scans your Bazel files for HTTP dependencies and writes the snapshot to `.bazel_git_lfs/dependencies.json`. Re-run is cached — use `-f` to force re-scan.
 
-## 4. Fetch Dependencies
-
-Download all dependencies from their origin URLs:
+## 3. Add a Mirror Remote
 
 ```bash
-bazel-git-lfs fetch
+bazel-git-lfs remote add origin git@github.com:my-org/mirror.git
 ```
 
-The tool downloads each dependency, verifies its SHA256 digest, and stores the verified object in `.bazel_git_lfs/objects/`. Objects that are already cached are reused without re-downloading.
+Passthrough to `git -C .bazel_git_lfs/objects remote add`. After success, you'll see a branch naming suggestion: `my-org_mirror_<feature>`.
 
-## 5. Push to Mirror
+## 4. Fetch/Push/Pull (Passthrough)
 
-Upload the verified objects to your mirror repository:
+All operate on the inner git repo at `.bazel_git_lfs/objects/`:
 
 ```bash
-bazel-git-lfs push
+bazel-git-lfs fetch origin
+bazel-git-lfs push origin main
+bazel-git-lfs pull origin
 ```
 
-This copies all locally cached objects to the mirror's Git LFS store, merges their source URLs into the mirror manifest, and commits + pushes the changes. Re-running `push` is idempotent — already-mirrored objects are skipped.
-
-## 6. Pull from Mirror
-
-On another machine or CI runner, set up and pull from the same mirror:
-
-```bash
-bazel-git-lfs init
-bazel-git-lfs remote add --url git@github.com:my-org/mirror.git
-bazel-git-lfs pull
-```
-
-The tool downloads objects from the mirror repository — no requests to the original source URLs are needed.
-
-## 7. Switch URL Sources (Optional)
-
-If your Bazel project needs to point at different artifact sources, use `checkout`:
+## 5. Checkout URL Sources
 
 ```bash
 # Restore to original source URLs
-bazel-git-lfs checkout default
+bazel-git-lfs checkout --
 
-# Switch to local file:// paths (useful for offline work)
-bazel-git-lfs checkout local
+# Switch to local file:// paths (offline work)
+bazel-git-lfs checkout @
 
-# Switch to a named profile's mirror URL
-bazel-git-lfs checkout my-profile
+# Git checkout a branch + apply URL patches
+bazel-git-lfs checkout <branch>
 ```
+
+## 6. Clean
+
+```bash
+bazel-git-lfs clean
+```
+
+Removes the entire `.bazel_git_lfs/` directory.
 
 ## Next Steps
 
 - See [[Commands]] for the full command reference
-- See [[Configuration]] for detailed profile and alias setup
-- See [[Troubleshooting]] for common issues and solutions
+- See [[Configuration]] for profile and alias setup
+- See [[Troubleshooting]] for common issues

@@ -1,78 +1,58 @@
 # Commands
 
-This page lists all `bazel-git-lfs` commands. Each command has a dedicated page with syntax, options, examples, and output format.
+This page lists all `bazel-git-lfs` commands. The tool uses an **interception/passthrough** architecture: only 4 commands are custom; all others pass through to `git -C .bazel_git_lfs/objects <args>`.
 
-## Core Workflow
+## Custom Commands
 
 | Command | Description |
 |---------|-------------|
-| [[Commands-init\|init]] | Initialize the config area (`.bazel_git_lfs/`) in a project |
-| [[Commands-remote\|remote]] | Manage mirror repository profiles and URL aliases |
-| [[Commands-inspect\|inspect]] | Scan Bazel project files for HTTP dependencies |
-| [[Commands-fetch\|fetch]] | Download dependencies from their origin URLs |
-| [[Commands-push\|push]] | Upload verified objects to the mirror repository |
-| [[Commands-pull\|pull]] | Download objects from the mirror repository |
-| [[Commands-status\|status]] | Show mirror status and verify object integrity |
-| [[Commands-clean\|clean]] | Remove local objects store, mirror clone, and snapshot |
-| [[Commands-checkout\|checkout]] | Rewrite dependency URLs in Bazel files to a target source |
+| [[Commands-init\|init]] | Initialize `.bazel_git_lfs/` + inner git repo at `objects/` |
+| [[Commands-inspect\|inspect]] | Scan Bazel project files for HTTP dependencies (cached, use `-f` to force re-scan) |
+| [[Commands-clean\|clean]] | Remove the entire `.bazel_git_lfs/` directory |
+| [[Commands-checkout\|checkout]] | Hybrid: `--`/`@` → custom URL replacement; `<branch>` → git checkout + patch |
+
+## Passthrough Commands
+
+All other commands delegate to `git -C .bazel_git_lfs/objects <args>`:
+
+| Command | Passthrough Target |
+|---------|-------------------|
+| `fetch` | `git fetch` |
+| `push` | `git push` |
+| `pull` | `git pull` |
+| `remote` | `git remote` (with post-hook: branch naming suggestion) |
+| `status` | `git status` |
+| `log` | `git log` |
+| `branch` | `git branch` |
+| `add` | `git add` |
+| `commit` | `git commit` |
+| ... | any other git command |
 
 ## Command Summary
 
 ### `init`
 
 ```text
-bazel-git-lfs init
+bazel-git-lfs init [--json]
 ```
 
-Creates `.bazel_git_lfs/` config directory and updates `.gitignore`. Must be run before any other command.
-
-### `remote`
-
-```text
-bazel-git-lfs remote add [--global] [--alias <name>] [--url <url>] [--json]
-bazel-git-lfs remote set-default [--global] <alias>
-bazel-git-lfs remote remove [--global] <alias>
-bazel-git-lfs remote list [--global] [--effective] [--json]
-bazel-git-lfs remote alias add <name> <url>
-bazel-git-lfs remote alias list [--json]
-bazel-git-lfs remote alias remove <name>
-```
+Creates `.bazel_git_lfs/` → `mkdir objects` → `git init` in objects with LFS enabled. Updates `.gitignore`.
 
 ### `inspect`
 
 ```text
-bazel-git-lfs inspect [--json]
+bazel-git-lfs inspect [-f]
 ```
 
-### `fetch`
-
-```text
-bazel-git-lfs fetch [--json]
-```
-
-### `push`
-
-```text
-bazel-git-lfs push [--json]
-```
-
-### `pull`
-
-```text
-bazel-git-lfs pull [--json]
-```
-
-### `status`
-
-```text
-bazel-git-lfs status [<sha256-prefix>] [--json]
-```
+Scans Bazel project files for remote HTTP dependencies and writes snapshot to `.bazel_git_lfs/dependencies.json`. If cached snapshot exists, prints it directly. Use `-f` to force re-scan.
 
 ### `clean`
 
 ```text
-bazel-git-lfs clean [--json]
+bazel-git-lfs clean
 ```
+
+Removes the entire `.bazel_git_lfs/` directory, including the inner git repo.
 
 ### `checkout`
 
@@ -80,26 +60,28 @@ bazel-git-lfs clean [--json]
 bazel-git-lfs checkout <alias>
 ```
 
-## Aliases
+| Alias | Behavior |
+|-------|----------|
+| `default` or `--` | Custom URL replacement — restore original source URLs |
+| `local` or `@` | Custom URL replacement — switch to `file://` paths |
+| `<branch>` | `git -C .bazel_git_lfs/objects checkout <branch>` + custom patch |
 
-The `checkout` command supports these built-in aliases:
+### `remote add`
 
-| Alias | Target |
-|-------|--------|
-| `default` or `--` | Restore to original source URLs from the mirror manifest |
-| `local` or `@` | Switch to local `file://` paths under `.bazel_git_lfs/objects/` |
-| `<profile-name>` | Switch to that profile's configured remote URL |
+```text
+bazel-git-lfs remote add <name> <url>
+```
+
+Passthrough to `git -C .bazel_git_lfs/objects remote add`. After success, outputs branch naming suggestion: `<group>_<repo>_<feature>`.
 
 ## Exit Codes
-
-All commands follow the same exit code convention:
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | Error (check the error message) |
-| 2 | Usage error (invalid arguments or options) |
+| 1 | Error |
+| 2 | Usage error |
 
 ## JSON Output
 
-All commands support `--json` for machine-readable output. The JSON output always includes an `ok` field (`true`/`false`). On error, an `error` field provides the error message.
+Custom commands output JSON with an `ok` field. Passthrough commands output raw git output.

@@ -4,46 +4,32 @@
 
 Scan Bazel project files for HTTP dependencies. Parses `WORKSPACE`, `WORKSPACE.bazel`, and `MODULE.bazel` files (plus any `load()`ed `.bzl` files) and extracts `http_archive`/`http_file` rules with their URLs, SHA256 digests, and strip prefixes.
 
+Results are cached in `.bazel_git_lfs/dependencies.json`. Use `-f` to force re-scan.
+
 ## Usage
 
 ```
-bazel-git-lfs inspect
+bazel-git-lfs inspect [-f]
 ```
 
 ## Options
 
-No options (output is always JSON).
+| Option | Description |
+|--------|-------------|
+| `-f, --force` | Force re-scan even if cached snapshot exists |
 
 ## Examples
 
-Inspect a project:
+First scan (or re-scan):
+
+```bash
+bazel-git-lfs inspect -f
+```
+
+Cached print (fast):
 
 ```bash
 bazel-git-lfs inspect
-```
-
-## JSON Output
-
-```json
-{
-  "ok": true,
-  "projectDir": "/path/to/project",
-  "dependencies": [
-    {
-      "name": "react",
-      "urls": ["https://.../react.tar.gz"],
-      "sha256": "15a019bd...",
-      "stripPrefix": null,
-      "sourceFile": "WORKSPACE",
-      "resolved": true
-    }
-  ],
-  "filesScanned": ["WORKSPACE"],
-  "warnings": [],
-  "queryUsed": false,
-  "queryExternalRepos": null,
-  "dependencyRelations": null
-}
 ```
 
 ## Exit Codes
@@ -51,10 +37,10 @@ bazel-git-lfs inspect
 | Code | Meaning |
 |------|---------|
 | 0 | Inspection completed successfully |
-| 1 | Error (e.g., project not initialized) |
+| 1 | Error |
 
 ## Notes
 
+- Results are cached in `.bazel_git_lfs/dependencies.json`
 - `inspect` is read-only — it does not download or modify any files
-- Results are persisted to `.bazel_git_lfs/dependencies.json` for use by `fetch` and other commands
-- If `bazel query` is available and the project uses Bzlmod, it may be used for additional resolution
+- The cached output is the raw JSON file contents

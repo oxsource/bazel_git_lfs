@@ -1,10 +1,10 @@
 # bazel-git-lfs
 
-**bazel-git-lfs** is a lightweight CLI tool that discovers, downloads, verifies, and mirrors Bazel remote HTTP dependencies (`http_archive`/`http_file` in `WORKSPACE`/`MODULE.bazel`) using a shared Git LFS repository.
+**bazel-git-lfs** is a lightweight CLI tool that discovers, downloads, verifies, and mirrors Bazel remote HTTP dependencies (`http_archive`/`http_file` in `WORKSPACE`/`MODULE.bazel`) using an inner git repository managed via Git LFS.
 
-## Overview
+## Architecture
 
-The tool follows a mirror-based workflow: inspect your project's dependencies, fetch them from their origin URLs, push them to a shared mirror repository, and pull them from the mirror on other machines — all with SHA256 integrity verification.
+The tool uses an **interception/passthrough** pattern. `.bazel_git_lfs/objects/` is an inner git repository. Only 4 commands are custom (`init`, `inspect`, `clean`, `checkout`); all others pass through to `git -C .bazel_git_lfs/objects <args>`.
 
 ## Quick Start
 
@@ -12,41 +12,12 @@ The tool follows a mirror-based workflow: inspect your project's dependencies, f
 npm install -g bazel-git-lfs
 cd /path/to/your/project
 bazel-git-lfs init
-bazel-git-lfs remote add --url git@github.com:my-org/mirror.git
 bazel-git-lfs inspect
-bazel-git-lfs fetch
-bazel-git-lfs push
+bazel-git-lfs remote add origin git@github.com:my-org/mirror.git
+bazel-git-lfs fetch origin main
 ```
 
 See the [[Quickstart]] for a complete walkthrough.
-
-## Workflow
-
-```
-                    ┌──────────┐
-                    │  Inspect  │
-                    └────┬─────┘
-                         │
-                    ┌────▼─────┐
-                    │  Fetch   │
-                    └────┬─────┘
-                         │
-                    ┌────▼─────┐
-                    │   Push   │
-                    └────┬─────┘
-                         │
-               ┌─────────▼─────────┐
-               │  Mirror Repository │
-               └─────────┬─────────┘
-                         │
-                    ┌────▼─────┐
-                    │   Pull   │
-                    └────┬─────┘
-                         │
-                    ┌────▼──────┐
-                    │  Checkout  │
-                    └───────────┘
-```
 
 ## Getting Started
 
@@ -59,21 +30,13 @@ See the [[Quickstart]] for a complete walkthrough.
 
 | Page | Description |
 |------|-------------|
-| [[Commands-init\|init]] | Create the config area in a project |
-| [[Commands-remote\|remote]] | Manage mirror repository profiles |
-| [[Commands-inspect\|inspect]] | Scan Bazel project files for dependencies |
-| [[Commands-fetch\|fetch]] | Download dependencies from origin URLs |
-| [[Commands-push\|push]] | Upload objects to the mirror repository |
-| [[Commands-pull\|pull]] | Download objects from the mirror repository |
-| [[Commands-status\|status]] | Check mirror status and integrity |
-| [[Commands-clean\|clean]] | Remove local objects, mirror clone, and snapshot |
-| [[Commands-checkout\|checkout]] | Switch dependency URLs between sources |
-
-## Advanced Topics
-
-| Page | Description |
-|------|-------------|
+| [[Commands-init\|init]] | Create `.bazel_git_lfs/` + inner git repo |
+| [[Commands-inspect\|inspect]] | Scan Bazel files for dependencies (cached) |
+| [[Commands-clean\|clean]] | Remove entire `.bazel_git_lfs/` directory |
+| [[Commands-checkout\|checkout]] | Hybrid: `--`/`@` → URL replacement; `<branch>` → git + patch |
 | [[Configuration]] | Config file format, profiles, aliases, environment variables |
-| [[Architecture]] | Objects store, mirror manifest, checkout state, pre-commit hook |
+| [[Architecture]] | Interception/passthrough, inner git repo, flow diagrams |
 | [[Troubleshooting]] | Common errors, causes, and solutions |
 | [[CI-CD]] | Using bazel-git-lfs in CI/CD pipelines |
+
+> **Passthrough commands**: `fetch`, `push`, `pull`, `remote`, `status`, `log`, `branch`, `add`, `commit` — all delegate to `git -C .bazel_git_lfs/objects <args>`.
