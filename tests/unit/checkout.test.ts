@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { runCheckoutScan, type CheckoutTarget } from '@/mirror/checkout';
+import { runCheckoutScan, isLocalFallbackUrl, type CheckoutTarget } from '@/mirror/checkout';
+
+describe('isLocalFallbackUrl', () => {
+  it('treats localhost:8022 as a normal URL (not a fallback)', () => {
+    expect(isLocalFallbackUrl('http://localhost:8022/com/github/foo/bar.zip')).toBe(false);
+  });
+
+  it('treats other localhost ports as fallback URLs', () => {
+    expect(isLocalFallbackUrl('http://localhost:8080/third_party/deps/x.zip')).toBe(true);
+    expect(isLocalFallbackUrl('http://localhost:9000/x.zip')).toBe(true);
+  });
+
+  it('treats non-localhost URLs as normal', () => {
+    expect(isLocalFallbackUrl('https://github.com/foo/bar.zip')).toBe(false);
+  });
+});
 
 describe('checkout alias resolution', () => {
   it('resolves default alias to original target', async () => {

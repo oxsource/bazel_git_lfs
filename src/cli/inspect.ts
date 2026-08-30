@@ -12,6 +12,7 @@ import { guard } from '@/cli/common';
 import { objectRelativePath, objectSha256RelativePath } from '@/objects/object-path';
 import { sha256 } from '@/objects/sha256';
 import { emptyManifest, mergeManifest, serializeManifest, parseManifest } from '@/mirror/manifest';
+import { isLocalFallbackUrl } from '@/mirror/checkout';
 import type { ManifestUpdate } from '@/mirror/models';
 
 export interface InspectOptions {
@@ -118,7 +119,7 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
 
     // Every dependency with a valid sha256 contributes to the manifest,
     // whether the object is already stored or freshly downloaded.
-    const sources = dep.urls.filter((u) => !u.includes('localhost'));
+    const sources = dep.urls.filter((u) => !isLocalFallbackUrl(u));
     if (sources.length > 0) {
       updates.push({ sha256: dep.sha256, path: relPath, sources });
     }

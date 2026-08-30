@@ -4,7 +4,9 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CONFIG_DIR_NAME } from '@/config/paths';
-import { COMMANDS, FILES } from '@/config/constants';
+import { COMMANDS, FILES, LOCAL_SERVER } from '@/config/constants';
+
+const LOCAL_SERVER_PORT = LOCAL_SERVER.PORT;
 
 export const CHECKOUT_STATE_FILE = FILES.CHECKOUT_STATE;
 
@@ -86,6 +88,20 @@ export interface CheckoutDeps {
   rewriteFile: (path: string, content: string, before: string, after: string) => Promise<boolean>;
 }
 
+// A localhost URL that is NOT our local object server (port 8022) is a
+// Bazel fallback/private URL and should never be treated as a mirror object
+// URL. localhost:8022 is the local server and counts as a normal URL.
+export function isLocalFallbackUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') return false;
+    const port = u.port || (u.protocol === 'http:' ? '80' : '443');
+    return port !== String(LOCAL_SERVER_PORT);
+  } catch {
+    return false;
+  }
+}
+
 // Exported for testing
 export function findDependencyUrl(
   content: string,
@@ -159,7 +175,7 @@ export function findDependencyUrl(
     }
   }
   return found.length > 0
-    ? (found.find((u) => !u.includes('localhost:8080')) ?? found[0])
+    ? (found.find((u) => !isLocalFallbackUrl(u)) ?? found[0])
     : null;
 }
 
@@ -312,9 +328,9 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
   } else {
     // Local target: iterate over snapshot dependencies directly.
     for (const dep of deps.dependencies) {
-      // Prefer a non-8080 source URL as the match basis (8080 is the
-      // original Bazel localhost fallback and is never rewritten).
-      const originalUrl = dep.urls.find((u) => !u.includes('localhost:8080')) ?? dep.urls[0];
+      // Prefer a non-fallback source URL as the match basis (localhost
+      // except our 8022 server is the Bazel fallback and never rewritten).
+      const originalUrl = dep.urls.find((u) => !isLocalFallbackUrl(u)) ?? dep.urls[0];
       if (!originalUrl) continue;
       // Use the manifest's object path (full path under objects/) when
       // available; otherwise fall back to the file name.
