@@ -67,11 +67,9 @@ describe('checkout command end-to-end', () => {
   it('reports not-initialized error when config area is missing', async () => {
     const proj = tempProject();
     projects.push(proj);
-    const { code, stdout } = await runCli(['node', 'bazel-git-lfs', 'checkout', 'default'], proj);
+    const { code, stderr } = await runCli(['node', 'bazel-git-lfs', 'checkout', 'default'], proj);
     expect(code).toBe(1);
-    const parsed = JSON.parse(stdout);
-    expect(parsed.ok).toBe(false);
-    expect(parsed.error).toContain('Not a valid bazel_git_lfs project');
+    expect(stderr).toContain('Not a valid bazel_git_lfs project');
   });
 
   it('rejects missing alias with usage error (exit 2)', async () => {
@@ -85,9 +83,8 @@ describe('checkout command end-to-end', () => {
     const bgl = join(proj, '.bazel_git_lfs');
     mkdirSync(bgl, { recursive: true });
     writeFileSync(join(bgl, 'config.json'), JSON.stringify({}));
-    const { code, stdout } = await runCli(['node', 'bazel-git-lfs', 'checkout', 'default'], proj);
+    const { code, stderr } = await runCli(['node', 'bazel-git-lfs', 'checkout', 'default'], proj);
     expect(code).toBe(1);
-    const parsed = JSON.parse(stdout);
-    expect(parsed.ok).toBe(false);
+    expect(stderr.length).toBeGreaterThan(0);
   });
 });

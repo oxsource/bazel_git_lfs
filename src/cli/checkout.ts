@@ -1,14 +1,14 @@
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { guard } from '@/cli/common';
-import { format, EXIT_OK, EXIT_ERROR } from '@/cli/format';
+import { EXIT_OK, EXIT_ERROR } from '@/cli/format';
 import { runCheckoutScan, writeCheckoutState, removeCheckoutState, isNonDefaultCheckout } from '@/mirror/checkout';
 import { resolveAlias, RESERVED_ALIASES } from '@/mirror/alias';
 import { parseManifest } from '@/mirror/manifest';
 import { parseRemoteUrl } from '@/hooks/parse-remote-url';
 import { readFile, writeFile } from 'node:fs/promises';
 import { CONFIG_DIR_NAME } from '@/config/paths';
-import { COMMANDS, BAZEL_FILES, DIRS, FILES } from '@/config/constants';
+import { BAZEL_FILES, DIRS, FILES } from '@/config/constants';
 import { FsSnapshotStore } from '@/inspect/snapshot';
 import type { MirrorManifest } from '@/mirror/models';
 
@@ -28,7 +28,7 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
 
   const g = guard.checkInitialized(projectDir);
   if (!g.ok) {
-    format.printResult({ ok: false, error: g.error }, { json: true });
+    process.stderr.write(`error: ${g.error}\n`);
     return EXIT_ERROR;
   }
 
@@ -47,11 +47,11 @@ export async function runCheckoutCommand(opts: CheckoutCliOptions): Promise<numb
   try {
     execFileSync('git', ['checkout', alias], { cwd: objectsDir, stdio: 'inherit' });
   } catch {
-    format.printResult({ ok: false, error: `Failed to git checkout "${alias}" in inner repo` }, { json: true });
+    process.stderr.write(`error: Failed to git checkout "${alias}" in inner repo\n`);
     return EXIT_ERROR;
   }
 
-  format.printResult({ ok: true, command: COMMANDS.CHECKOUT, alias, message: `Switched to "${alias}" via git checkout, now applying URL patches` }, { json: true });
+  process.stdout.write(`Switched to "${alias}" via git checkout, now applying URL patches\n`);
   return runCustomCheckout(projectDir, alias);
 }
 
@@ -144,11 +144,7 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
 
   if (snapshot.hasConflicts) {
     const detail = snapshot.conflicts.map((c) => `"${c.repo}": ${c.adopted.sourceFile} vs ${c.divergent.sourceFile} (differing: ${c.differingFields.join(', ')})`).join('; ');
-    format.printResult({
-      ok: false,
-      command: COMMANDS.CHECKOUT,
-      error: `conflicting declarations for repository: ${detail}; run inspect and resolve before checkout`,
-    }, { json: true });
+    process.stderr.write(`error: conflicting declarations for repository: ${detail}; run inspect and resolve before checkout\n`);
     return EXIT_ERROR;
   }
 
@@ -204,22 +200,17 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
   });
 
   const allChanged = treeResult.changed;
-  const output = {
-    ok: treeResult.ok,
-    command: COMMANDS.CHECKOUT,
-    alias: treeResult.alias,
-    target: treeResult.target,
-    changes: treeResult.changes,
-    changed: allChanged,
-    unchanged: treeResult.unchanged,
-    error: treeResult.error,
-  };
 
-  // Human-readable change list:  name: old -> new
-  for (const change of treeResult.changes) {
-    process.stdout.write(`${change.dependency}: ${change.before} -> ${change.after}\n`);
+  // Human-readable output:  name, old url --> new url  (one line per change)
+  if (treeResult.error) {
+    process.stderr.write(`error: ${treeResult.error}\n`);
   }
-  format.printResult(output, { json: true });
+  for (const change of treeResult.changes) {
+    process.stdout.write(`${change.dependency}, ${change.before} --> ${change.after}\n`);
+  }
+  if (allChanged === 0 && !treeResult.error) {
+    process.stdout.write(`No URL changes for "${treeResult.alias}" (${treeResult.unchanged} unchanged)\n`);
+  }
 
   if (treeResult.ok && allChanged > 0) {
     if (isNonDefaultCheckout(alias)) {
