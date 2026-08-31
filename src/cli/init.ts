@@ -6,7 +6,11 @@ import { format, EXIT_OK, EXIT_ERROR, OutputOptions } from '@/cli/format';
 import { RESERVED_ALIASES } from '@/mirror/alias';
 import { TOOL_NAME, FILES, LFS_PATTERNS } from '@/config/constants';
 
-const GITIGNORE_ENTRY = '.bazel_git_lfs/';
+// Ignore everything under .bazel_git_lfs/ (including the inner objects repo)
+// but re-include the project-local .bazelconfig so it is version-controlled.
+const GITIGNORE_BLOCK = ['.bazel_git_lfs/*', '!.bazel_git_lfs/.bazelconfig'];
+// Legacy whole-directory ignore rule; replaced by GITIGNORE_BLOCK.
+const LEGACY_GITIGNORE = '.bazel_git_lfs/';
 
 const PRE_COMMIT_HOOK = `#!/bin/sh
 # bazel-git-lfs pre-commit hook: auto-restore URLs to original source before commit
@@ -65,7 +69,7 @@ export async function runInit(opts: InitOptions): Promise<number> {
     if (gitignoreModified) {
       try {
         execFileSync('git', ['add', '.gitignore'], { cwd: opts.cwd, stdio: 'pipe' });
-        execFileSync('git', ['commit', '-m', 'chore: add .bazel_git_lfs/ to .gitignore'], { cwd: opts.cwd, stdio: 'pipe' });
+        execFileSync('git', ['commit', '-m', 'chore: gitignore .bazel_git_lfs/ but track .bazelconfig'], { cwd: opts.cwd, stdio: 'pipe' });
       } catch {
         // non-fatal
       }
@@ -109,13 +113,21 @@ async function ensureGitIgnore(gitIgnorePath: string, opts: InitOptions): Promis
       // missing .gitignore is fine
     }
 
-    if (content.includes(GITIGNORE_ENTRY)) {
+    // Already configured: both lines of the new block present.
+    if (GITIGNORE_BLOCK.every((line) => content.includes(line))) {
       return false;
     }
 
-    const line =
-      content.endsWith('\n') || content.length === 0 ? GITIGNORE_ENTRY : `\n${GITIGNORE_ENTRY}`;
-    await writeFile(gitIgnorePath, content + line, 'utf8');
+    let base = content;
+    if (content.includes(LEGACY_GITIGNORE)) {
+      // Replace the legacy whole-directory ignore so it no longer shadows
+      // the `!` re-include rule.
+      base = content.split(LEGACY_GITIGNORE).join('').trimEnd();
+    }
+
+    const block = GITIGNORE_BLOCK.join('\n');
+    const addition = base.length === 0 ? block : `\n${block}\n`;
+    await writeFile(gitIgnorePath, base + addition, 'utf8');
     return true;
   } catch (err) {
     const message = `Config area created, but could not update ${gitIgnorePath}: ${(err as Error).message}`;

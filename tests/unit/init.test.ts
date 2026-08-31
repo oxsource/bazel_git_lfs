@@ -46,7 +46,8 @@ describe('runInit', () => {
     execFileSync('git', ['init', '-q'], { cwd: proj });
     await quietInit(proj);
     const content = readFileSync(join(proj, '.gitignore'), 'utf8');
-    expect(content).toContain('.bazel_git_lfs/');
+    expect(content).toContain('.bazel_git_lfs/*');
+    expect(content).toContain('!.bazel_git_lfs/.bazelconfig');
   });
 
   it('creates .gitignore when absent in a git repo', async () => {
