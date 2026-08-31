@@ -20,7 +20,7 @@ bazel-git-lfs <cmd> <args>
 
 ```
 .bazel_git_lfs/
-├── config.json              # Project config (profiles, aliases)
+├── .bazelconfig             # Project config (INI: server port, inspect filters)
 ├── dependencies.json        # Snapshot from inspect
 ├── checkout-state.json      # Non-default checkout state
 └── objects/                 # Inner git repository (Git LFS managed)

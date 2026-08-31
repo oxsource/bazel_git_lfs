@@ -67,5 +67,5 @@ Removes the entire `.bazel_git_lfs/` directory.
 ## Next Steps
 
 - See [[Commands]] for the full command reference
-- See [[Configuration]] for profile and alias setup
+- See [[BazelConfig]] for `.bazelconfig` configuration
 - See [[Troubleshooting]] for common issues

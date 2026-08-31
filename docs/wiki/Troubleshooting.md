@@ -8,18 +8,6 @@
 
 **Solution**: Run `bazel-git-lfs init` in the project root to create the config directory.
 
-## "No mirror configured"
-
-**Error**: `No mirror configured. Run "bazel-git-lfs init" and "bazel-git-lfs remote add" first.`
-
-**Cause**: The command needs a mirror repository profile, but none is configured.
-
-**Solution**: Run `bazel-git-lfs remote add --url <mirror-url>` to add a mirror profile. If you already have a profile, check that it is set as active:
-
-```bash
-bazel-git-lfs remote list --effective
-```
-
 ## SHA256 Hash Mismatch
 
 **Error**: `object content does not match declared sha256`

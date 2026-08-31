@@ -56,4 +56,4 @@ You should see usage information for all commands: `init`, `remote`, `inspect`, 
 
 - Follow the [[Quickstart]] to set up your first project
 - See [[Commands]] for the full command reference
-- See [[Configuration]] for profile and alias setup
+- See [[BazelConfig]] for .bazelconfig configuration

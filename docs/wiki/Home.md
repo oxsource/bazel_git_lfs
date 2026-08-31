@@ -34,7 +34,8 @@ See the [[Quickstart]] for a complete walkthrough.
 | [[Commands-inspect\|inspect]] | Scan Bazel files for dependencies (cached) |
 | [[Commands-clean\|clean]] | Remove entire `.bazel_git_lfs/` directory |
 | [[Commands-checkout\|checkout]] | Hybrid: `--`/`@` → URL replacement; `<branch>` → git + patch |
-| [[Configuration]] | Config file format, profiles, aliases, environment variables |
+| [[Configuration]] | Configuration files and `.bazelconfig` overview |
+| [[BazelConfig]] | `.bazelconfig` INI syntax and full reference |
 | [[Architecture]] | Interception/passthrough, inner git repo, flow diagrams |
 | [[Troubleshooting]] | Common errors, causes, and solutions |
 | [[CI-CD]] | Using bazel-git-lfs in CI/CD pipelines |

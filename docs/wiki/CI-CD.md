@@ -32,7 +32,7 @@ npm install -g bazel-git-lfs
 - name: Initialize and pull from mirror
   run: |
     bazel-git-lfs init
-    bazel-git-lfs remote add --url $MIRROR_URL
+    bazel-git-lfs remote add origin $MIRROR_URL
     bazel-git-lfs pull
 ```
 
@@ -42,7 +42,7 @@ npm install -g bazel-git-lfs
 - name: Inspect, fetch, and push to mirror
   run: |
     bazel-git-lfs init
-    bazel-git-lfs remote add --url $MIRROR_URL
+    bazel-git-lfs remote add origin $MIRROR_URL
     bazel-git-lfs inspect
     bazel-git-lfs fetch
     bazel-git-lfs push
@@ -160,7 +160,7 @@ jobs:
         env:
           MIRROR_URL: ${{ secrets.MIRROR_URL }}
         run: |
-          bazel-git-lfs remote add --url "$MIRROR_URL"
+          bazel-git-lfs remote add origin "$MIRROR_URL"
           bazel-git-lfs push
 ```
 
@@ -172,7 +172,7 @@ consume-mirror:
   script:
     - npm install -g bazel-git-lfs
     - bazel-git-lfs init
-    - bazel-git-lfs remote add --url "$MIRROR_URL"
+    - bazel-git-lfs remote add origin "$MIRROR_URL"
     - bazel-git-lfs pull
     - bazel-git-lfs checkout default
 ```

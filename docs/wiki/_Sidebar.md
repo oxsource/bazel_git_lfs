@@ -18,6 +18,7 @@
 
 ## Advanced Topics
 - [[Configuration]]
+- [[BazelConfig]]
 - [[Architecture]]
 - [[Troubleshooting]]
 - [[CI-CD]]
