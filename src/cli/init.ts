@@ -5,6 +5,7 @@ import { paths, CONFIG_DIR_NAME } from '@/config/paths';
 import { format, EXIT_OK, EXIT_ERROR, OutputOptions } from '@/cli/format';
 import { RESERVED_ALIASES } from '@/mirror/alias';
 import { TOOL_NAME, FILES, LFS_PATTERNS } from '@/config/constants';
+import { BAZELCONFIG_TEMPLATE } from '@/config/bazelconfig-template';
 
 // Ignore everything under .bazel_git_lfs/ (including the inner objects repo)
 // but re-include the project-local .bazelconfig so it is version-controlled.
@@ -29,6 +30,8 @@ fi
 
 export interface InitOptions extends OutputOptions {
   cwd: string;
+  /** Write a .bazelconfig template into the config area. */
+  withBazelconfig?: boolean;
 }
 
 export async function runInit(opts: InitOptions): Promise<number> {
@@ -81,8 +84,40 @@ export async function runInit(opts: InitOptions): Promise<number> {
     configPath: dir,
     message: `Initialized config area at ${dir} with inner git repo at ${objectsDir}`,
   };
+
+  if (opts.withBazelconfig) {
+    const configPath = join(dir, FILES.BAZELCONFIG);
+    const status = await ensureBazelconfigTemplate(configPath, opts);
+    if (status === 'error') {
+      return EXIT_ERROR;
+    }
+    if (status === 'created') {
+      result.bazelconfigPath = configPath;
+      result.message += ` and wrote ${FILES.BAZELCONFIG} template at ${configPath}`;
+    } else {
+      result.message += ` (${FILES.BAZELCONFIG} already exists, left untouched)`;
+    }
+  }
+
   format.printResult(result, opts);
   return EXIT_OK;
+}
+
+/**
+ * Writes the .bazelconfig template without overwriting an existing file.
+ * Returns 'created' | 'exists' | 'error'.
+ */
+async function ensureBazelconfigTemplate(configPath: string, opts: InitOptions): Promise<'created' | 'exists' | 'error'> {
+  try {
+    await writeFile(configPath, BAZELCONFIG_TEMPLATE, { flag: 'wx' });
+    return 'created';
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+      return 'exists';
+    }
+    format.printError(`Cannot write ${FILES.BAZELCONFIG} template at ${configPath}: ${(err as Error).message}`, opts);
+    return 'error';
+  }
 }
 
 function isGitRepo(cwd: string): boolean {

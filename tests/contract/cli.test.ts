@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildProgram } from '@/cli/index';
-import { COMMANDS } from '@/config/constants';
+import { COMMANDS, FILES } from '@/config/constants';
 
 interface Captured {
   code?: number;
@@ -79,6 +79,20 @@ describe('CLI command surface', () => {
     await vi.waitFor(() => {
       expect(import('node:fs').then(({ existsSync }) => existsSync(target))).toBeTruthy();
     });
+    rmSync(proj, { recursive: true, force: true });
+  });
+
+  it('init --with-bazelconfig writes a .bazelconfig template via the CLI', async () => {
+    const proj = tempProject();
+    const { code } = await runCli(['node', 'bazel-git-lfs', COMMANDS.INIT, '--with-bazelconfig'], proj);
+    expect(code).toBe(0);
+    const target = join(proj, '.bazel_git_lfs', FILES.BAZELCONFIG);
+    await vi.waitFor(() => {
+      expect(import('node:fs').then(({ existsSync }) => existsSync(target))).toBeTruthy();
+    });
+    const content = readFileSync(target, 'utf8');
+    expect(content).toContain('[server]');
+    expect(content).toContain('[inspect]');
     rmSync(proj, { recursive: true, force: true });
   });
 

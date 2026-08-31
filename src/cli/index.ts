@@ -51,8 +51,13 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .command(COMMANDS.INIT)
     .description('Initialize a non-versioned .bazel_git_lfs config area in the current project')
     .option('--json', 'output machine-readable JSON')
-    .action(async (options: { json?: boolean }) => {
-      process.exitCode = await runInit({ json: Boolean(options.json), cwd });
+    .option('--with-bazelconfig', 'write a .bazelconfig template into the config area (keeps an existing file untouched)')
+    .action(async (options: { json?: boolean; withBazelconfig?: boolean }) => {
+      process.exitCode = await runInit({
+        json: Boolean(options.json),
+        withBazelconfig: Boolean(options.withBazelconfig),
+        cwd,
+      });
     });
 
   program
