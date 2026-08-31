@@ -146,7 +146,13 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
         mkdirSync(dirname(absPath), { recursive: true });
         writeFileSync(absPath, result.data);
         writeFileSync(join(objectsDir, shaRelPath), dep.sha256 + '\n');
-        execFileSync('git', ['add', relPath, shaRelPath], { cwd: objectsDir, stdio: 'pipe' });
+        // Stage the LFS tracking file (created by `init`'s `git lfs track`)
+        // alongside the object files so it is committed on the first update.
+        const addArgs = [relPath, shaRelPath];
+        if (existsSync(join(objectsDir, FILES.GIT_ATTRIBUTES))) {
+          addArgs.push(FILES.GIT_ATTRIBUTES);
+        }
+        execFileSync('git', ['add', ...addArgs], { cwd: objectsDir, stdio: 'pipe' });
         say(`  OK ${relPath} (+ ${shaRelPath})`);
         downloaded = true;
         updated++;
