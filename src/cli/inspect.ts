@@ -13,6 +13,7 @@ import { objectRelativePath, objectSha256RelativePath } from '@/objects/object-p
 import { sha256 } from '@/objects/sha256';
 import { emptyManifest, mergeManifest, serializeManifest, parseManifest } from '@/mirror/manifest';
 import { isLocalFallbackUrl } from '@/mirror/checkout';
+import { BazelConfig, toDependency } from '@/config/bazelconfig';
 import type { ManifestUpdate } from '@/mirror/models';
 
 export interface InspectOptions {
@@ -104,6 +105,7 @@ async function downloadWithProgress(
 
 async function updateMissing(opts: InspectOptions, result: InspectResult): Promise<void> {
   const objectsDir = join(opts.cwd, CONFIG_DIR_NAME, DIRS.OBJECTS);
+  const serverPort = BazelConfig.fromFile(opts.cwd).serverPort();
   let updated = 0;
   const updates: ManifestUpdate[] = [];
 
@@ -119,7 +121,7 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
 
     // Every dependency with a valid sha256 contributes to the manifest,
     // whether the object is already stored or freshly downloaded.
-    const sources = dep.urls.filter((u) => !isLocalFallbackUrl(u));
+    const sources = dep.urls.filter((u) => !isLocalFallbackUrl(u, serverPort));
     if (sources.length > 0) {
       updates.push({ sha256: dep.sha256, path: relPath, sources });
     }
@@ -200,6 +202,40 @@ async function updateMissing(opts: InspectOptions, result: InspectResult): Promi
   }
 }
 
+/**
+ * Apply `.bazelconfig` overrides to an inspect result in place:
+ * - `inspect.append`: merge manually-added dependencies (dedupe by name).
+ * - `inspect.exclude`: drop dependencies whose name matches (exact match).
+ */
+function applyBazelConfig(result: InspectResult, projectDir: string): void {
+  const config = BazelConfig.fromFile(projectDir);
+
+  const appendDeps = config.inspectAppend().map(toDependency);
+  const exclude = new Set(config.inspectExclude());
+
+  if (appendDeps.length > 0) {
+    const existing = new Set(result.dependencies.map((d) => d.name));
+    for (const dep of appendDeps) {
+      if (!existing.has(dep.name)) {
+        result.dependencies.push(dep);
+        existing.add(dep.name);
+        result.warnings.push(`[config] appended manual dependency "${dep.name}"`);
+        say(`  [config] appended manual dependency "${dep.name}"`);
+      }
+    }
+  }
+
+  if (exclude.size > 0) {
+    const before = result.dependencies.length;
+    result.dependencies = result.dependencies.filter((d) => !exclude.has(d.name));
+    if (result.dependencies.length < before) {
+      const n = before - result.dependencies.length;
+      result.warnings.push(`[config] excluded ${n} dependency/dependencies from .bazelconfig`);
+      say(`  [config] excluded ${n} dependency/dependencies from .bazelconfig`);
+    }
+  }
+}
+
 export async function runInspect(opts: InspectOptions): Promise<number> {
   const projectDir = guard.findProjectRoot(opts.cwd) ?? opts.cwd;
   const configDir = paths.projectConfigDir(projectDir);
@@ -224,21 +260,21 @@ export async function runInspect(opts: InspectOptions): Promise<number> {
     if (!opts.force && existsSync(snapshotPath)) {
       const raw = await readFile(snapshotPath, 'utf8');
       result = JSON.parse(raw);
-      if (opts.json) {
-        process.stdout.write(raw);
-      } else {
-        printTable(result);
-      }
       say('Using cached snapshot (use -f to re-scan).');
     } else {
       say('Scanning Bazel files...');
       result = await inspectProject({ projectDir });
-      await store.write(projectDir, result);
-      if (opts.json) {
-        format.printResult({ ok: true, dependencies: result.dependencies, warnings: result.warnings }, { json: true });
-      } else {
-        printTable(result);
-      }
+    }
+
+    // Apply .bazelconfig overrides (append manual deps, exclude unwanted) and
+    // persist the effective snapshot so -u and later runs stay consistent.
+    applyBazelConfig(result, projectDir);
+    await store.write(projectDir, result);
+
+    if (opts.json) {
+      format.printResult({ ok: true, dependencies: result.dependencies, warnings: result.warnings }, { json: true });
+    } else {
+      printTable(result);
     }
   } catch (err) {
     format.printResult({ ok: false, error: (err as Error).message }, { json: true });

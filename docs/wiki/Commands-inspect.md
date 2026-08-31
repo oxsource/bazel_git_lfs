@@ -44,3 +44,18 @@ bazel-git-lfs inspect
 - Results are cached in `.bazel_git_lfs/dependencies.json`
 - `inspect` is read-only — it does not download or modify any files
 - The cached output is the raw JSON file contents
+
+## Filtering & Manual Additions (`.bazelconfig`)
+
+You can override the scanned result via the project-local INI config `.bazel_git_lfs/.bazelconfig`:
+
+- **`inspect.exclude`** — dependency names (exact match) to drop from archiving. Useful for scanned deps you don't want to store.
+- **`inspect.append`** — manually add dependencies the scan missed. Format: `name|urls(comma-separated)|sha256[|stripPrefix]`.
+
+```ini
+[inspect]
+exclude = some_unwanted_dep
+append = manual_dep|https://example.org/m.tar.gz|a1b2c3d4...e5f6
+```
+
+These are applied before the snapshot is written, so `inspect -u` archiving and later runs stay consistent. See [Configuration](Configuration.md) for the full `.bazelconfig` syntax.

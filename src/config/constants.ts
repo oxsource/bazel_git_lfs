@@ -42,6 +42,7 @@ export const FILES = {
   CHECKOUT_STATE: 'checkout-state.json',
   GIT_ATTRIBUTES: '.gitattributes',
   SERVER_PID: 'server.pid',
+  BAZELCONFIG: '.bazelconfig',
 };
 
 export const LOCAL_SERVER = {

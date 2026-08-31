@@ -11,7 +11,8 @@ import { CONFIG_DIR_NAME } from '@/config/paths';
 import { BAZEL_FILES, DIRS, FILES } from '@/config/constants';
 import { FsSnapshotStore } from '@/inspect/snapshot';
 import type { MirrorManifest } from '@/mirror/models';
-import { ensureLocalServer, stopLocalServer, isLocalServerRunning, LOCAL_SERVER_PORT } from '@/server/local-server';
+import { ensureLocalServer, stopLocalServer, isLocalServerRunning } from '@/server/local-server';
+import { BazelConfig } from '@/config/bazelconfig';
 
 export interface CheckoutCliOptions {
   cwd: string;
@@ -181,7 +182,8 @@ async function runCustomCheckout(projectDir: string, alias: string): Promise<num
         return { type: 'original', baseUrl: '' };
       }
       if (resolved === RESERVED_ALIASES.LOCAL) {
-        return { type: 'local', baseUrl: `http://localhost:${LOCAL_SERVER_PORT}` };
+        const port = BazelConfig.fromFile(projectDir).serverPort();
+        return { type: 'local', baseUrl: `http://localhost:${port}` };
       }
       // Alias names a remote in the inner repo → use its raw-file base URL.
       const baseUrl = remoteFileBaseUrl(objectsDir, a);

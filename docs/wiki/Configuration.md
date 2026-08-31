@@ -101,3 +101,58 @@ The following aliases are reserved and cannot be used as profile names:
 ## Pre-commit Hook
 
 When you run `bazel-git-lfs init` in a git repository, the tool installs a pre-commit hook at `.git/hooks/pre-commit`. This hook automatically runs `bazel-git-lfs checkout default` before each commit if a non-default checkout state is detected, preventing non-default URLs from being committed.
+
+## Project-local INI Config (`.bazelconfig`)
+
+Beyond `config.json` (remote/profiles/aliases), `bazel-git-lfs` reads a lightweight **INI-style** config from `.bazel_git_lfs/.bazelconfig`. This file is project-local only and manages behavior-level settings that previously were hard-coded.
+
+### File Location
+
+```
+.bazel_git_lfs/.bazelconfig
+```
+
+If the file is absent, all settings fall back to their defaults.
+
+### Supported Keys
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `server.port` | `8022` | Port used by the local object HTTP server (`checkout @`). |
+| `inspect.exclude` | *(none)* | Dependency names (exact match) to exclude from archiving during `inspect`. |
+| `inspect.append` | *(none)* | Manually-added dependencies that the scan missed, one per entry. |
+
+### Syntax
+
+The format mirrors git config:
+
+- `[section]` blocks, `key = value` assignments.
+- `#` / `;` start comments; inline `#` after a value is a comment.
+- Arrays support **two styles**, which can be combined:
+  - `key = [a, b]` — comma-separated array literal.
+  - `key += c` — append another value (or `+= [d, e]`).
+
+### Example
+
+```ini
+# .bazel_git_lfs/.bazelconfig
+
+[server]
+port = 9022
+
+[inspect]
+# Don't archive these scanned dependencies (exact name match).
+exclude = some_unwanted_dep
+exclude += another_dep
+
+# Manually add dependencies the scan missed.
+# Format: name|urls(comma-separated)|sha256[|stripPrefix]
+append = manual_dep|https://example.org/m.tar.gz|a1b2c3d4...e5f6
+append += other_dep|https://example.org/o.tar.gz|f6e5...d4c3|third_party
+```
+
+### Behavior
+
+- `inspect.exclude` / `inspect.append` are applied to the scan result before the snapshot is written, so `inspect -u` archiving and later reads stay consistent.
+- Invalid values (e.g. a non-numeric `server.port`) are ignored and the default is used.
+- `inspect.append` entries use the same fields as a scanned dependency; `stripPrefix` is optional (omit it when not needed).

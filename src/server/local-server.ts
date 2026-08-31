@@ -4,8 +4,14 @@ import { join } from 'node:path';
 import { request } from 'node:http';
 import { CONFIG_DIR_NAME } from '@/config/paths';
 import { LOCAL_SERVER, FILES } from '@/config/constants';
+import { BazelConfig } from '@/config/bazelconfig';
 
+/** Default port fallback (overridable per project via `.bazelconfig`). */
 export const LOCAL_SERVER_PORT = LOCAL_SERVER.PORT;
+
+function serverPort(projectDir: string): number {
+  return BazelConfig.fromFile(projectDir).serverPort();
+}
 
 function pidFile(projectDir: string): string {
   return join(projectDir, CONFIG_DIR_NAME, FILES.SERVER_PID);
@@ -36,16 +42,18 @@ export function isLocalServerRunning(projectDir: string): boolean {
 export async function ensureLocalServer(projectDir: string): Promise<{ baseUrl: string; pid: number }> {
   const objectsDir = join(projectDir, CONFIG_DIR_NAME, 'objects');
   const pidPath = pidFile(projectDir);
+  const port = serverPort(projectDir);
+  const baseUrl = `http://localhost:${port}`;
 
   if (isLocalServerRunning(projectDir)) {
     const pid = readServerPid(pidPath) ?? 0;
-    return { baseUrl: `http://localhost:${LOCAL_SERVER_PORT}`, pid };
+    return { baseUrl, pid };
   }
 
   const entry = join(__dirname, 'local-server-entry.js');
   const child = spawn(
     process.execPath,
-    [entry, objectsDir, String(LOCAL_SERVER_PORT)],
+    [entry, objectsDir, String(port)],
     {
       detached: true,
       stdio: 'ignore',
@@ -57,9 +65,9 @@ export async function ensureLocalServer(projectDir: string): Promise<{ baseUrl: 
   // Give the server a moment to bind, polling the port directly (no proxy).
   const deadline = Date.now() + 3000;
   while (Date.now() < deadline) {
-    if (await isPortOpen(LOCAL_SERVER_PORT)) break;
+    if (await isPortOpen(port)) break;
   }
-  return { baseUrl: `http://localhost:${LOCAL_SERVER_PORT}`, pid: child.pid ?? 0 };
+  return { baseUrl, pid: child.pid ?? 0 };
 }
 
 function readServerPid(pidPath: string): number | null {

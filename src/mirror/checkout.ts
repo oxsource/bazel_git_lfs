@@ -86,17 +86,20 @@ export interface CheckoutDeps {
   resolveTarget: (alias: string) => Promise<CheckoutTarget>;
   readFiles: () => Promise<Record<string, string>>;
   rewriteFile: (path: string, content: string, before: string, after: string) => Promise<boolean>;
+  /** Configured local server port (default 8022); used to identify our server URL. */
+  serverPort?: number;
 }
 
-// A localhost URL that is NOT our local object server (port 8022) is a
-// Bazel fallback/private URL and should never be treated as a mirror object
-// URL. localhost:8022 is the local server and counts as a normal URL.
-export function isLocalFallbackUrl(url: string): boolean {
+// A localhost URL that is NOT our local object server (default port 8022) is
+// a Bazel fallback/private URL and should never be treated as a mirror object
+// URL. localhost on our server port counts as a normal URL. Pass the actual
+// configured server port when it differs from the default.
+export function isLocalFallbackUrl(url: string, serverPort: number = LOCAL_SERVER_PORT): boolean {
   try {
     const u = new URL(url);
     if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') return false;
     const port = u.port || (u.protocol === 'http:' ? '80' : '443');
-    return port !== String(LOCAL_SERVER_PORT);
+    return port !== String(serverPort);
   } catch {
     return false;
   }
@@ -107,6 +110,7 @@ export function findDependencyUrl(
   content: string,
   depName: string,
   expectedUrl?: string,
+  serverPort: number = LOCAL_SERVER_PORT,
 ): string | null {
   const lines = content.split('\n');
   let inBlock = false;
@@ -175,7 +179,7 @@ export function findDependencyUrl(
     }
   }
   return found.length > 0
-    ? (found.find((u) => !isLocalFallbackUrl(u)) ?? found[0])
+    ? (found.find((u) => !isLocalFallbackUrl(u, serverPort)) ?? found[0])
     : null;
 }
 
@@ -272,6 +276,7 @@ export function replaceDependencyUrl(
 export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResult> {
   const alias = resolveAlias(deps.alias);
   const target = await deps.resolveTarget(alias);
+  const serverPort = deps.serverPort ?? LOCAL_SERVER_PORT;
   const changes: CheckoutChange[] = [];
   let unchanged = 0;
 
@@ -301,8 +306,8 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
         // remote → rewrite: match the element equal to the original source
         // URL (so localhost entries in urls=[...] are left untouched).
         const currentUrl = target.type === 'original'
-          ? findDependencyUrl(content, dep.name)
-          : findDependencyUrl(content, dep.name, originalUrl);
+          ? findDependencyUrl(content, dep.name, undefined, serverPort)
+          : findDependencyUrl(content, dep.name, originalUrl, serverPort);
         if (currentUrl === null) continue;
         found = true;
 
@@ -330,7 +335,7 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
     for (const dep of deps.dependencies) {
       // Prefer a non-fallback source URL as the match basis (localhost
       // except our 8022 server is the Bazel fallback and never rewritten).
-      const originalUrl = dep.urls.find((u) => !isLocalFallbackUrl(u)) ?? dep.urls[0];
+      const originalUrl = dep.urls.find((u) => !isLocalFallbackUrl(u, serverPort)) ?? dep.urls[0];
       if (!originalUrl) continue;
       // Use the manifest's object path (full path under objects/) when
       // available; otherwise fall back to the file name.
@@ -344,7 +349,7 @@ export async function runCheckoutScan(deps: CheckoutDeps): Promise<CheckoutResul
 
       let found = false;
       for (const [filePath, content] of Object.entries(files)) {
-        const currentInFile = findDependencyUrl(content, dep.name, originalUrl);
+        const currentInFile = findDependencyUrl(content, dep.name, originalUrl, serverPort);
         if (currentInFile === null) continue;
         found = true;
 
