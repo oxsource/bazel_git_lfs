@@ -22,7 +22,12 @@
     "test:watch": "vitest",
     "prepare": "npm run build",
     "link": "npm link",
-    "unlink": "npm uninstall -g bazel-git-lfs"
+    "unlink": "npm uninstall -g bazel-git-lfs",
+    "release": "npm version",
+    "release:patch": "npm version patch",
+    "release:minor": "npm version minor",
+    "release:major": "npm version major",
+    "postversion": "git push && git push --tags"
   },
   "keywords": [
     "bazel",
