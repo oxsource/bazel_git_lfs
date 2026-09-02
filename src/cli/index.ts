@@ -5,6 +5,7 @@ import { runInspect } from '@/cli/inspect';
 import { runCleanCommand } from '@/cli/clean';
 import { runCheckoutCommand } from '@/cli/checkout';
 import { runCompletion } from '@/cli/completion';
+import { runSkillCommand } from '@/cli/skill';
 import { handle, registerCommand } from '@/cli/interceptor';
 import { format } from '@/cli/format';
 import { COMMANDS, TOOL_NAME } from '@/config/constants';
@@ -24,6 +25,7 @@ const CUSTOM_COMMANDS: ReadonlySet<string> = new Set([
   COMMANDS.CLEAN,
   COMMANDS.CHECKOUT,
   COMMANDS.COMPLETION,
+  COMMANDS.SKILL,
 ]);
 
 registerCommand(COMMANDS.REMOTE, {
@@ -100,6 +102,20 @@ export function buildProgram(deps: CliDeps = {}): Command {
     .argument('[shell]', 'bash or zsh (default: auto-detect from SHELL env)')
     .action(async (shell: string | undefined) => {
       process.exitCode = await runCompletion({ shell });
+    });
+
+  program
+    .command(COMMANDS.SKILL)
+    .description(
+      'Scaffold GitHub Actions workflows into the host repo (skills: github.workflow, list); derives the repo name from origin like the remote-add branch hook',
+    )
+    .argument('[name]', 'skill name: github.workflow or list')
+    .allowExcessArguments(false)
+    .action(async (name: string | undefined) => {
+      process.exitCode = await runSkillCommand({
+        cwd,
+        name,
+      });
     });
 
   return program;

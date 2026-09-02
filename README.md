@@ -7,7 +7,7 @@ Discover and mirror Bazel remote HTTP dependencies into a shared Git LFS reposit
 `bazel-git-lfs` uses an **interception/passthrough** pattern:
 
 - `.bazel_git_lfs/objects/` is an inner git repository managed via Git LFS
-- Only 4 custom commands: `init`, `inspect`, `clean`, `checkout`
+- Custom commands: `init`, `inspect`, `clean`, `checkout`, `completion`, `skill`
 - All other commands (`fetch`, `push`, `pull`, `remote`, `status`, `log`, `branch`, etc.) transparently pass through to `git -C .bazel_git_lfs/objects <args>`
 - `checkout` is hybrid: `--`/`@` → custom URL replacement; `<branch>` → git checkout + custom patch
 - Post-hooks: branch naming suggestion after `remote add`
@@ -36,6 +36,10 @@ bazel-git-lfs checkout <branch>    # git checkout + URL patch
 
 # Clean removes everything
 bazel-git-lfs clean
+
+# Scaffold a GitHub Actions workflow (tag-push release) into the host repo
+bazel-git-lfs skill github.workflow
+bazel-git-lfs skill list
 ```
 
 ## Documentation

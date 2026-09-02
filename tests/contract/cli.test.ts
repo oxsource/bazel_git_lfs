@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildProgram } from '@/cli/index';
@@ -57,7 +58,7 @@ function tempProject(): string {
   return proj;
 }
 
-const CUSTOM_COMMAND_NAMES = [COMMANDS.INIT, COMMANDS.INSPECT, COMMANDS.CLEAN, COMMANDS.CHECKOUT, COMMANDS.COMPLETION];
+const CUSTOM_COMMAND_NAMES = [COMMANDS.INIT, COMMANDS.INSPECT, COMMANDS.CLEAN, COMMANDS.CHECKOUT, COMMANDS.COMPLETION, COMMANDS.SKILL];
 
 describe('CLI command surface', () => {
   it('--help lists all custom commands', async () => {
@@ -121,6 +122,22 @@ describe('CLI command surface', () => {
     const { code, stderr } = await runCli(['node', 'bazel-git-lfs', COMMANDS.CHECKOUT, 'default'], proj);
     expect(code).toBe(1);
     expect(stderr).toContain('Not a valid bazel_git_lfs project');
+    rmSync(proj, { recursive: true, force: true });
+  });
+
+  it('skill github.workflow writes release.yml via the CLI', async () => {
+    const proj = tempProject();
+    execFileSync('git', ['init', '-q'], { cwd: proj });
+    execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: proj });
+    execFileSync('git', ['config', 'user.name', 'test'], { cwd: proj });
+    execFileSync('git', ['remote', 'add', 'origin', 'git@github.com:oxsource/bazle_git_lfs.git'], {
+      cwd: proj,
+    });
+
+    const { code } = await runCli(['node', 'bazel-git-lfs', COMMANDS.SKILL, 'github.workflow'], proj);
+
+    expect(code).toBe(0);
+    expect(existsSync(join(proj, '.github', 'workflows', 'release.yml'))).toBe(true);
     rmSync(proj, { recursive: true, force: true });
   });
 });

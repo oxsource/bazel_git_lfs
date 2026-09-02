@@ -10,6 +10,7 @@ This page lists all `bazel-git-lfs` commands. The tool uses an **interception/pa
 | [[Commands-inspect\|inspect]] | Scan Bazel project files for HTTP dependencies (cached, use `-f` to force re-scan) |
 | [[Commands-clean\|clean]] | Remove the entire `.bazel_git_lfs/` directory |
 | [[Commands-checkout\|checkout]] | Hybrid: `--`/`@` → custom URL replacement; `<branch>` → git checkout + patch |
+| [[Commands-skill\|skill]] | Scaffold GitHub Actions workflows into the host repo (skills: `github.workflow`, `list`) |
 
 ## Passthrough Commands
 
@@ -73,6 +74,15 @@ bazel-git-lfs remote add <name> <url>
 ```
 
 Passthrough to `git -C .bazel_git_lfs/objects remote add`. After success, outputs branch naming suggestion: `<group>_<repo>_<feature>`.
+
+### `skill`
+
+```text
+bazel-git-lfs skill github.workflow
+bazel-git-lfs skill list
+```
+
+Scaffolds GitHub Actions workflows into the host repository. The repository name is derived from `git remote get-url origin` (same logic as the `remote add` branch hook). See [[Commands-skill]] for details.
 
 ## Exit Codes
 

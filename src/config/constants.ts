@@ -9,6 +9,7 @@ export const COMMANDS = {
   CHECKOUT: 'checkout',
   REMOTE: 'remote',
   COMPLETION: 'completion',
+  SKILL: 'skill',
 } as const;
 
 export const REMOTE_SUBCOMMANDS = {
@@ -61,6 +62,8 @@ export const GIT = {
 };
 
 export const ARCHIVE_SUFFIXES = ['.tar.gz', '.tgz', '.tar.bz2', '.tar.xz', '.zip', '.tar'] as const;
+
+export const GITHUB_WORKFLOW_DIR = '.github/workflows';
 
 export const COMMIT_MESSAGES = {
   MIRROR_PUSH: 'bazel-git-lfs: mirror dependencies',

@@ -15,6 +15,7 @@
 - [[Commands-status]]
 - [[Commands-clean]]
 - [[Commands-checkout]]
+- [[Commands-skill]]
 
 ## Advanced Topics
 - [[Configuration]]
