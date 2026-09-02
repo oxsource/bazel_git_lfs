@@ -1,6 +1,6 @@
 {
   "name": "bazel-git-lfs",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Discover, cache, and mirror Bazel remote HTTP dependencies into a shared Git LFS repository",
   "bin": {
     "bazel-git-lfs": "./dist/index.js"
